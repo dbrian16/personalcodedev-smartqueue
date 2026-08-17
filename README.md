@@ -6,8 +6,6 @@ queue from a console, and administrators manage services, policy and analytics f
 dashboard. Wait times are estimated by a Python engine that starts from a queueing
 formula and learns from served tickets.
 
-The whole stack runs on a bare machine — **no Docker, Redis or PostgreSQL required**.
-Those are optional upgrades; without them the backend keeps state in memory.
 
 ## Architecture
 
