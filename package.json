@@ -1,0 +1,31 @@
+{
+  "name": "omni-queue-360",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "description": "Omni-Queue 360 Workspace",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "npm install && npm run build:shared && npm run setup --workspace=ai-engine",
+    "build:shared": "npm run build --workspace=@omni/shared-ui",
+    "start": "npm run build:shared && concurrently --kill-others-on-fail --names \"api,ai,kiosk,admin,online\" --prefix-colors \"blue,magenta,cyan,yellow,green\" \"npm run start --workspace=api-server\" \"npm run start --workspace=ai-engine\" \"npm run start --workspace=kiosk-app\" \"npm run start --workspace=admin-portal\" \"npm run start --workspace=online-portal\"",
+    "start:backend": "npm run build:shared && concurrently --names \"api,ai\" --prefix-colors \"blue,magenta\" \"npm run start --workspace=api-server\" \"npm run start --workspace=ai-engine\"",
+    "test": "npm run test --workspace=api-server && npm run test --workspace=ai-engine",
+    "test:api": "npm run test --workspace=api-server",
+    "reset": "npm run reset --workspace=api-server",
+    "docker:up": "docker-compose -f infrastructure/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infrastructure/docker-compose.yml down",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "knip": "^6.15.0",
+    "turbo": "^2.9.16"
+  },
+  "overrides": {
+    "typescript": "^4.9.5"
+  }
+}

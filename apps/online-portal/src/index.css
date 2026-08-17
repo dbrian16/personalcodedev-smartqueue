@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Cross-browser datetime-local calendar icon color ─────────────── */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+  filter: invert(38%) sepia(100%) saturate(400%) hue-rotate(190deg);
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
+}
+
+/* ── Entrance animations ──────────────────────────────────────────────
+   These class names come from tailwindcss-animate, which is not installed.
+   The declarations here only set custom properties, so nothing actually
+   animated; the keyframes below are what make them do anything. */
+@layer utilities {
+  .animate-in {
+    animation-name: enter;
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+  }
+  .fade-in { --enter-opacity: 0; }
+  .slide-in-from-top { --enter-translate-y: -12px; }
+  .slide-in-from-top-1 { --enter-translate-y: -4px; }
+  .slide-in-from-bottom { --enter-translate-y: 12px; }
+  .duration-300 { animation-duration: 300ms; }
+  .duration-500 { animation-duration: 500ms; }
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--enter-opacity, 1);
+    transform: translateY(var(--enter-translate-y, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Confirmation badge pulse on appear ───────────────────────────── */
+@keyframes badge-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

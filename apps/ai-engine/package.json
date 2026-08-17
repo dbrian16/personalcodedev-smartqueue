@@ -1,0 +1,10 @@
+{
+  "name": "ai-engine",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node launch.js",
+    "setup": "node launch.js --install-only",
+    "test": "node launch.js --test"
+  }
+}

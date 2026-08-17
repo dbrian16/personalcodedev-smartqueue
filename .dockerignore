@@ -1,0 +1,13 @@
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+.git
+.env
+.env.*
+build
+dist
+*.log
+coverage
+.DS_Store
+*.md
+.gemini
