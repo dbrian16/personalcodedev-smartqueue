@@ -13,11 +13,10 @@ This document describes the workflow and architecture of the Omni-Queue 360 syst
 
 1. **Ticket generation**
    - **UI:** the customer picks a service from the catalogue published by the
-     backend, and is **offered** a phone number field (email optional). The kiosk no
-     longer invents a placeholder address: a number that is given is real and
-     enables ticket lookup and the duplicate-ticket cap; one that is skipped leaves
-     the ticket genuinely anonymous, and the screen says so rather than implying
-     otherwise. `requireKioskPhone` in the admin settings makes it mandatory.
+     backend, and is **offered** a phone number field (email optional). A number
+     that is given is real and enables ticket lookup and the duplicate-ticket cap;
+     one that is skipped leaves the ticket anonymous, and the screen says so.
+     `requireKioskPhone` in the admin settings makes it mandatory.
    - **Backend (`POST /api/leads`):**
      - Rejects a service that is not in the catalogue, so a typo can never create a
        queue nobody serves.
@@ -57,19 +56,19 @@ appointment slot in advance.
 
 1. **Booking**
    - The customer picks a service, then an **appointment slot** offered by the
-     server. Free-text date entry is gone: every slot shown is already checked
-     against opening hours, the booking horizon and remaining capacity.
+     server. Every slot shown is already checked against opening hours, the
+     booking horizon and remaining capacity.
    - **Verification:** the request is validated first, then a 6-digit code is issued
      and the validated booking is held inside the challenge. Only redeeming the code
      creates the ticket, so the details cannot be swapped between the two steps.
-     Locally the provider is `console` — the code is logged and shown on screen,
+     Locally the provider is `console`, so the code is logged and shown on screen,
      because no SMS gateway runs on a laptop.
    - The ticket is created as `Pending` and is invisible to the kiosk board and to
      staff until check-in.
 
 2. **The check-in window**
-   - `checkinOpensAt` = appointment − 30 min. Earlier than that is refused; the old
-     behaviour let a 2:00 pm appointment occupy the live queue from 8:00 am.
+   - `checkinOpensAt` = appointment − 30 min. Earlier than that is refused, so a
+     2:00 pm appointment cannot occupy the live queue from 8:00 am.
    - `pendingExpiresAt` = appointment + 15 min grace. Within it, the ticket keeps the
      appointment's place in the queue.
    - After the grace period the reservation is **not cancelled**. For a further
@@ -97,9 +96,9 @@ Python AI microservice.
 
 - `@omni/shared` — TypeScript interfaces and the endpoint constants, so the front
   ends and the backend cannot drift on data shapes.
-- `@omni/shared-ui` — `Toast`, `ErrorBoundary`, `QRCode`, and `useCatalog`, the hook
-  every front end uses to read the service list. The list used to be hard-coded in
-  three places.
+- `@omni/shared-ui` — `Toast`, `ErrorBoundary`, the `apiGet`/`apiPost` JSON
+  helpers, and the `useCatalog` / `useSocketRoom` hooks every front end uses to
+  read the service list and join the live queue rooms.
 
 ### 2. Backend and storage
 
@@ -122,7 +121,7 @@ which combination is live.
 ### 3. Distributed lock
 
 `SET key token NX PX ttl` with a per-holder token, released and extended by a Lua
-script that compares the token first — so a slow request can never delete a lock a
+script that compares the token first, so a slow request can never delete a lock a
 different request has since acquired. The lock is renewed while it is held. On the
 in-process store the same compare happens directly, since Node runs it in a single
 turn of the event loop.
@@ -138,25 +137,24 @@ Events are addressed to three kinds of room:
 - `position_<service>` — the counters on that service line
 - `ticket_<number>` — the one customer holding that ticket
 
-There is no global broadcast. The dashboard is event-driven with a 30-second safety
-poll, rather than re-fetching everything every five seconds.
+There is no global broadcast. The dashboard is event-driven, with a 30-second
+safety poll as the only fallback for a dropped socket.
 
 ### 5. AI engine (`apps/ai-engine`)
 
 - **Baseline:** `queue position × average service time ÷ staff on duty`. This answers
   every request until there is history, and whenever the model is unavailable.
 - **Learned model:** a scikit-learn `GradientBoostingRegressor` fitted on served
-  tickets — the wait each ticket actually experienced, given the queue depth,
-  staffing and time of day recorded when it was issued. The analytic estimate is
-  itself a feature, so the model only has to learn the centre's deviation from
-  textbook queueing.
+  tickets, against the wait each ticket actually experienced given the queue
+  depth, staffing and time of day recorded when it was issued. The analytic
+  estimate is itself a feature, so the model only has to learn the centre's
+  deviation from textbook queueing.
 - **Adoption gate:** a newly fitted model is kept only if its mean absolute error
   beats the baseline on held-out data. A bad fit can never make estimates worse.
 - **No staff on duty:** the estimate is withheld (`queueStatus: "Unavailable"`)
-  instead of reported as zero minutes. The count of staff on duty is no longer
-  floored at 1.
-- **Resilience:** any failure — engine down, timeout, malformed reply — falls back to
-  the baseline. Ticket issuance is never blocked by the model.
+  rather than reported as zero minutes, and the staff count is not floored at 1.
+- **Resilience:** any failure (engine down, timeout, malformed reply) falls back
+  to the baseline. Ticket issuance is never blocked by the model.
 
 ### 6. Security
 

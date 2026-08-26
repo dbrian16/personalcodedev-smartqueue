@@ -14,7 +14,7 @@ export interface SocketHandlers<TLead> {
 export interface SocketRoomOptions<TLead> {
   /**
    * Where the socket server lives. Passed in rather than imported so this
-   * package stays free of build-time environment values — same reason
+   * package stays free of build-time environment values, the same way
    * `useCatalog` takes its API base as an argument.
    */
   url: string;
@@ -28,12 +28,8 @@ export interface SocketRoomOptions<TLead> {
 }
 
 /**
- * Joins the queue's live rooms for as long as the component is mounted.
- *
- * WHY this is shared: the kiosk and the online portal held near-identical copies
- * of this hook — the same reconnect settings, the same subscribe call, differing
- * only in a trailing comma and one event the online copy had quietly dropped —
- * and the staff console hand-rolled the same wiring a third time.
+ * Joins the queue's live rooms for as long as the component is mounted, with one
+ * set of reconnect settings for the kiosk, the online portal and the console.
  *
  * Handlers are held in a ref on purpose: a parent that re-creates them each
  * render would otherwise tear the socket down and reconnect on every keystroke.

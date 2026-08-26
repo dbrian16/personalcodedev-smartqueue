@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { LangToggle } from '../contexts/LanguageContext';
-import axios from 'axios';
 import { API_BASE, AUTH_BASE, Lead } from '@omni/shared';
-import { Toast, useCatalog, apiErrorMessage } from '@omni/shared-ui';
+import { Toast, useCatalog, apiErrorMessage, apiGet, apiPost } from '@omni/shared-ui';
 import { useKioskSocket } from '../hooks/useKioskSocket';
 import CurrentQueueView from './views/CurrentQueueView';
 import RegistrationView from './views/RegistrationView';
@@ -40,11 +39,11 @@ const KioskForm = () => {
   const findExistingTicket = async (input: string) => {
     const value = input.trim();
     if (TICKET_PATTERN.test(value)) {
-      const response = await axios.get(`${API_BASE}/leads/track/${encodeURIComponent(value.toUpperCase())}`);
+      const response = await apiGet(`${API_BASE}/leads/track/${encodeURIComponent(value.toUpperCase())}`);
       return response.data as Lead;
     }
 
-    const { data } = await axios.post(`${API_BASE}/leads/lookup`, { identifier: value });
+    const { data } = await apiPost(`${API_BASE}/leads/lookup`, { identifier: value });
     if (!data.tickets || data.tickets.length === 0) return null;
     return data.tickets[0] as Lead;
   };
@@ -69,7 +68,7 @@ const KioskForm = () => {
         }
 
         if (checkinStep === 'verify') {
-          const verifyRes = await axios.post(`${API_BASE}/online/checkin/verify`, { ticketNumber });
+          const verifyRes = await apiPost(`${API_BASE}/online/checkin/verify`, { ticketNumber });
           if (verifyRes.data.alreadyCheckedIn) {
             const found = await findExistingTicket(ticketNumber);
             if (found) {
@@ -92,7 +91,7 @@ const KioskForm = () => {
 
         // No location capture. Standing at the kiosk and stating the booked contact detail
         // is the check.
-        const response = await axios.post(`${API_BASE}/online/checkin`, { ticketNumber, identifier });
+        const response = await apiPost(`${API_BASE}/online/checkin`, { ticketNumber, identifier });
         setCurrentLead(response.data.lead);
         setSubmitted(true);
         showToast(
@@ -101,7 +100,7 @@ const KioskForm = () => {
         );
       } else {
         // The phone number is offered, not demanded.
-        const response = await axios.post(`${API_BASE}/leads`, {
+        const response = await apiPost(`${API_BASE}/leads`, {
           service: formData.service,
           phone: formData.phone.trim() || undefined,
           email: formData.email.trim() || undefined,
@@ -120,10 +119,10 @@ const KioskForm = () => {
   const handleFeedback = async () => {
     if (!currentLead || feedbackRating === 0) return;
     try {
-      const tokenRes = await axios.post(`${AUTH_BASE}/api/auth/ticket-token`, {
+      const tokenRes = await apiPost(`${AUTH_BASE}/api/auth/ticket-token`, {
         ticketNumber: currentLead.ticketNumber
       });
-      await axios.post(`${API_BASE}/feedback`, {
+      await apiPost(`${API_BASE}/feedback`, {
         leadId: currentLead.id,
         rating: feedbackRating,
         comment: feedbackComment

@@ -1,20 +1,10 @@
 /**
- * In-process stand-in for the Redis client.
+ * In-process stand-in for the Redis client, so the backend boots on a machine
+ * with no Redis running. Covers the command surface the stores use, with
+ * node-redis v5 return shapes.
  *
- * WHY: the queue store, the distributed lock and the socket adapter all spoke
- * Redis directly, so `initStore` threw and the whole backend refused to boot on
- * any machine without a Redis server. That is the normal state of a developer
- * laptop and of the grading environment for this project, which is required to
- * run locally with no external services.
- *
- * This implements exactly the command surface the rest of the code uses, with
- * the same return shapes as node-redis v5, so `leadsStore`, `staffStore`,
- * `auditStore` and `catalogStore` are identical on both backends and only the
- * lock and the socket adapter have to know which one they got.
- *
- * Trade-off, stated plainly: state lives in this process only. It is lost on
- * restart and it is not shared between instances. Point REDIS_URL at a real
- * Redis (or run `npm run docker:up`) the moment you need either.
+ * State lives in this process only: lost on restart, not shared between
+ * instances. Point REDIS_URL at a real Redis when you need either.
  */
 const MATCH_ALL = '*';
 
@@ -151,10 +141,6 @@ const createMemoryClient = () => {
       return hash(key).delete(String(field)) ? 1 : 0;
     },
 
-    async hLen(key) {
-      return hash(key).size;
-    },
-
     // ── lists ─────────────────────────────────────────────────────────────
     async rPush(key, value) {
       const target = list(key);
@@ -177,10 +163,6 @@ const createMemoryClient = () => {
       return 'OK';
     },
 
-    async lLen(key) {
-      return list(key).length;
-    },
-
     // ── introspection / lifecycle ─────────────────────────────────────────
     async *scanIterator(options = {}) {
       const pattern = options.MATCH || MATCH_ALL;
@@ -192,11 +174,6 @@ const createMemoryClient = () => {
 
     async ping() {
       return 'PONG';
-    },
-
-    async flushAll() {
-      store.clear();
-      return 'OK';
     },
 
     async quit() {

@@ -75,10 +75,10 @@ app.get('/api/health', async (_req, res) => {
     }
   }
 
-  // The key-value store backs the locks, the socket adapter and — without
-  // Postgres — the queue itself, so an unusable one is never a healthy state.
-  // On the in-process backend it is part of this process and cannot be "down"
-  // independently, which is exactly why a missing Redis no longer degrades us.
+  // The key-value store backs the locks, the socket adapter and, without
+  // Postgres, the queue itself, so an unusable one is never a healthy state.
+  // The in-process backend lives in this process and cannot be down on its own,
+  // so it is reported as healthy without a probe.
   try {
     if (!store.isRedisReady()) throw new Error('client not ready');
     await store.getRedisClient().ping();

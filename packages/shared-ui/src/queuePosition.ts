@@ -8,11 +8,8 @@ interface QueueEntry {
 /**
  * Where a ticket stands in its own service line, counting from 1.
  *
- * WHY this is shared: the kiosk, the online portal and the socket handlers each
- * carried their own "filter to this position, keep the Waiting ones, find my
- * index, add one" — four copies of one rule, and the server's own ordering is
- * already baked into the array they were all given. Returns 0 when the ticket is
- * no longer waiting, which every caller renders as "—".
+ * Relies on the array already being in the server's queue order. Returns 0 when
+ * the ticket is no longer waiting, which callers render as a dash.
  *
  * @param leads - Leads as the server ordered them (effective queue time).
  * @param lead - The ticket to locate.

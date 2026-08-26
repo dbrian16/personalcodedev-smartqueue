@@ -1,12 +1,12 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════
-REM  PostgreSQL Service Control — Start / Stop / Status
+REM  PostgreSQL Service Control - Start / Stop / Status
 REM  Run as Administrator!
 REM ═══════════════════════════════════════════════════════════════
 SETLOCAL
 
 echo.
-echo ╔══════════════════════════════════════════════════════╗
+echo ╔══════════════════════════════════════════════════════�-
 echo ║  PostgreSQL Service Control                         ║
 echo ╚══════════════════════════════════════════════════════╝
 echo.

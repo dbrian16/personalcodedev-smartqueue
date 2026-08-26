@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, User, ShieldCheck, Fingerprint, Loader2 } from 'lucide-react';
-import axios from 'axios';
 import { API_BASE } from '@omni/shared';
-import { apiErrorMessage } from '@omni/shared-ui';
+import { apiErrorMessage, apiPost } from '@omni/shared-ui';
 import { UserMeta, UserRole } from './types';
 
 interface LoginProps {
@@ -25,7 +24,7 @@ const Login = ({ onLogin }: LoginProps) => {
     const userType = isAdmin ? 'admin' : 'staff';
 
     try {
-      const { data } = await axios.post(`${API_BASE}/auth/login`, {
+      const { data } = await apiPost(`${API_BASE}/auth/login`, {
         userType,
         username: username.trim(),
         password

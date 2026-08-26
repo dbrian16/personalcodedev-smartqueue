@@ -12,7 +12,7 @@ let kvClient = null;
 const getPool = () => pool;
 
 /**
- * The key-value client backing locks, ephemeral state and — without Postgres —
+ * The key-value client backing locks, ephemeral state and, without Postgres,
  * the queue itself. Either a real Redis client or the in-process stand-in.
  */
 const getRedisClient = () => kvClient;

@@ -1,11 +1,9 @@
 /**
  * Who may act on which service line.
  *
- * WHY it is not a hard block: the service used to come from the browser and was
- * never compared against the signed-in staff member's assignment, so counter A
- * could silently call counter B's customers. Cover is kept possible — staff do
- * stand in for each other — but made deliberate rather than accidental: the
- * client has to ask for it, and the fact is recorded.
+ * Not a hard block, because staff do stand in for each other. Covering another
+ * counter is allowed but has to be asked for explicitly, and every action taken
+ * while covering is recorded, so it can never happen by accident.
  *
  * Lives in its own module because both the staff console and the ticket
  * controller enforce the same rule, and neither should import the other.

@@ -16,9 +16,8 @@ const customerCanAccessLead = (user, lead) =>
 /**
  * Submits feedback for a specific ticket.
  *
- * Completed tickets only, submitted once. A waiting ticket
- * could previously be rated, and a rating could be overwritten without limit,
- * which made the CSAT figure on the dashboard unaudited.
+ * Completed tickets only, submitted once. Allowing a waiting ticket to be rated,
+ * or a rating to be overwritten, would leave the dashboard CSAT unauditable.
  */
 exports.submitFeedback = catchAsync(async (req, res) => {
   const { leadId, rating, comment } = req.body;

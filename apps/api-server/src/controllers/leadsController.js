@@ -61,10 +61,8 @@ exports.trackLead = catchAsync(async (req, res) => {
 });
 
 /**
- * Finds a customer's live tickets from the contact details they booked with.
- *
- * WHY: lookup used to work by ticket number only, so losing the number meant
- * losing the place in the queue with no recovery path.
+ * Finds a customer's live tickets from the contact details they booked with, so
+ * a lost ticket number does not mean a lost place in the queue.
  */
 exports.lookupLeads = catchAsync(async (req, res) => {
   const identifier = typeof req.body.identifier === 'string' ? req.body.identifier.trim() : '';
@@ -221,9 +219,8 @@ exports.updateLead = catchAsync(async (req, res) => {
 /**
  * Transfers a lead to another service line.
  *
- * WHY the constraints: transfer used to work from any status, including Completed
- * and Cancelled. Doing so erased the completion timestamp and pushed a finished
- * ticket back to the front of a live queue.
+ * Restricted to Called and Serving: transferring a Completed or Cancelled ticket
+ * would erase its completion timestamp and push it back into a live queue.
  */
 exports.transferLead = catchAsync(async (req, res) => {
   await withQueueLock(`queue:lead:${req.params.id}`, {}, async () => {

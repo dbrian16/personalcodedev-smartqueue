@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
-import { Lead, API_BASE, AUTH_BASE } from '@omni/shared';
-import { useCatalog, apiErrorMessage, queuePositionOf } from '@omni/shared-ui';
-import { useQueueSocket } from '../hooks/useQueueSocket';
+import { Lead, API_BASE, AUTH_BASE, SOCKET_URL } from '@omni/shared';
+import { useCatalog, useSocketRoom, apiErrorMessage, queuePositionOf, apiGet, apiPost } from '@omni/shared-ui';
 import { EMAIL_REGEX, PHONE_REGEX, readTicketFromUrl, clearTicketFromUrl } from '../helpers';
 import BookingView from './views/BookingView';
 import VerifyView from './views/VerifyView';
@@ -10,6 +8,9 @@ import TrackingView from './views/TrackingView';
 import FeedbackView from './views/FeedbackView';
 
 type View = 'booking' | 'verify' | 'tracking' | 'feedback';
+
+/** Statuses where the customer still has a place in the queue worth showing. */
+const LIVE_STATUSES = ['Waiting', 'Called', 'Serving'];
 
 interface PendingVerification {
   challengeId: string;
@@ -46,7 +47,33 @@ const OnlinePlatform = () => {
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
   }, []);
 
-  useQueueSocket(myLead, customerToken, setMyLead, setView, setQueuePosition);
+  useSocketRoom<Lead>({
+    url: SOCKET_URL,
+    enabled: !!myLead?.ticketNumber && !!customerToken,
+    token: customerToken,
+    position: myLead?.assignedPosition,
+    handlers: {
+      lead_status_updated: (updatedLead) => {
+        const current = myLeadRef.current;
+        if (!current || updatedLead.id !== current.id) return;
+        setMyLead(updatedLead);
+        // Only invite a rating once, and only for a session that actually happened.
+        if (updatedLead.status === 'Completed' && !updatedLead.hasFeedback) setView('feedback');
+      },
+      queue_updated: (allLeads) => {
+        const current = myLeadRef.current;
+        if (!current) return;
+
+        const updatedSelf = allLeads.find((lead) => lead.id === current.id);
+        if (!updatedSelf) return;
+
+        setMyLead(updatedSelf);
+        if (LIVE_STATUSES.includes(updatedSelf.status)) {
+          setQueuePosition(queuePositionOf(allLeads, updatedSelf));
+        }
+      }
+    }
+  });
 
   /** Loads a ticket by number, or by the contact detail it was booked with. */
   const checkStatus = useCallback(async (ticketOverride?: string | any) => {
@@ -61,13 +88,13 @@ const OnlinePlatform = () => {
       let token: string;
 
       if (/^TKT-\d+$/i.test(target)) {
-        const { data } = await axios.post(`${AUTH_BASE}/api/auth/ticket-token`, {
+        const { data } = await apiPost(`${AUTH_BASE}/api/auth/ticket-token`, {
           ticketNumber: target.toUpperCase()
         });
         found = data.lead;
         token = data.token;
       } else {
-        const { data } = await axios.post(`${API_BASE}/leads/lookup`, { identifier: target });
+        const { data } = await apiPost(`${API_BASE}/leads/lookup`, { identifier: target });
         if (!data.tickets || data.tickets.length === 0) {
           showToast('No live ticket found for those details.');
           return;
@@ -84,7 +111,7 @@ const OnlinePlatform = () => {
         setQueuePosition(0);
         setView('tracking');
       } else {
-        const { data: posLeads } = await axios.get<Lead[]>(
+        const { data: posLeads } = await apiGet<Lead[]>(
           `${API_BASE}/leads?position=${encodeURIComponent(found.assignedPosition)}&_t=${Date.now()}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -126,6 +153,19 @@ const OnlinePlatform = () => {
     return valid;
   };
 
+  /** Return to a clean booking screen from anywhere (the tracker's Back button). */
+  const resetToBooking = useCallback(() => {
+    setView('booking');
+    setMyLead(null);
+    setTicketNumber('');
+    setCustomerToken('');
+    setScheduledFor('');
+    setQueuePosition(0);
+    setVerification(null);
+    setFormData({ email: '', phone: '', service: '' });
+    setFormErrors({ email: '', phone: '' });
+  }, []);
+
   const applyCreatedBooking = (data: any) => {
     setCustomerToken(data.customerToken);
     setMyLead(data.lead as Lead);
@@ -150,7 +190,7 @@ const OnlinePlatform = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE}/online/book`, {
+      const response = await apiPost(`${API_BASE}/online/book`, {
         ...formData,
         scheduledFor: new Date(scheduledFor).toISOString()
       });
@@ -179,7 +219,7 @@ const OnlinePlatform = () => {
     if (!verification) return;
     setLoading(true);
     try {
-      const { data } = await axios.post(`${API_BASE}/online/book`, {
+      const { data } = await apiPost(`${API_BASE}/online/book`, {
         challengeId: verification.challengeId,
         code
       });
@@ -198,7 +238,7 @@ const OnlinePlatform = () => {
 
     setLoading(true);
     try {
-      const { data } = await axios.post(
+      const { data } = await apiPost(
         `${API_BASE}/leads/${current.id}/cancel`,
         {},
         { headers: { Authorization: `Bearer ${customerToken}` } }
@@ -218,14 +258,14 @@ const OnlinePlatform = () => {
     try {
       let token = customerToken;
       if (!token) {
-        const { data } = await axios.post(`${AUTH_BASE}/api/auth/ticket-token`, {
+        const { data } = await apiPost(`${AUTH_BASE}/api/auth/ticket-token`, {
           ticketNumber: current.ticketNumber
         });
         token = data.token;
         setCustomerToken(token);
       }
 
-      await axios.post(
+      await apiPost(
         `${API_BASE}/feedback`,
         { leadId: current.id, rating, comment },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -273,7 +313,7 @@ const OnlinePlatform = () => {
         loading={loading}
         checkStatus={checkStatus}
         cancelTicket={cancelMyTicket}
-        onBook={() => { setView('booking'); setMyLead(null); }}
+        onBook={resetToBooking}
       />
     );
   }

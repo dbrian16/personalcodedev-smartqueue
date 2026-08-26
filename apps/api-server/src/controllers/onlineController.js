@@ -228,8 +228,7 @@ exports.verifyCheckin = catchAsync(async (req, res) => {
   if (lead.source !== 'Remote') throwError('This is not an online ticket.');
   if (lead.status === 'Cancelled') throwError('Ticket has been cancelled or expired.');
 
-  // Pressing check-in twice used to show a red error to a customer who had just
-  // succeeded. Report the success instead.
+  // Pressing check-in twice reports the success again rather than an error.
   if (CHECKED_IN_STATUSES.includes(lead.status)) {
     return res.json({
       ticketNumber: lead.ticketNumber,
@@ -291,8 +290,8 @@ exports.performCheckin = catchAsync(async (req, res) => {
   const identifierMask = looksLikeEmail ? maskEmail(identifierRaw) : maskPhone(identifierRaw);
   const auditBase = { identifierType, identifierHash, identifierMask, ip, userAgent };
 
-  // Failures used to be logged and never counted, so another customer's contact
-  // details could be guessed by brute force one attempt at a time.
+  // Failures are counted, not just logged: without a lockout another customer's
+  // contact details can be guessed by brute force one attempt at a time.
   const lockScope = `${ticketNumber.toLowerCase()}:${hashValue(ip)}`;
   const lockedFor = await store.getCheckinLockoutSeconds(lockScope, settings.maxCheckinFailures);
   if (lockedFor > 0) {
@@ -358,8 +357,8 @@ exports.performCheckin = catchAsync(async (req, res) => {
       );
     }
 
-    // Past the grace period the appointment benefit is lost, but the customer —
-    // who has already travelled here — is served as a walk-in rather than turned away.
+    // Past the grace period the appointment benefit is lost, but a customer who
+    // has already travelled here is served as a walk-in rather than turned away.
     const isLate = now.getTime() > window.onTimeUntil.getTime();
 
     lead.status = 'Waiting';

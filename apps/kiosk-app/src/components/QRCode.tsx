@@ -14,9 +14,7 @@ interface QRCodeProps {
  * The virtual waiting room's entry point.
  *
  * Scanning the code opens a live tracker for the ticket on the customer's own
- * phone, so they can leave the waiting area instead of sitting in it. The kiosk
- * had the caption for it but never drew the code, so the ticket could only be
- * tracked at the terminal it was printed from.
+ * phone, so they can leave the waiting area instead of sitting in it.
  *
  * Rendered as SVG so it stays sharp on a wall-mounted kiosk and prints cleanly.
  */
@@ -39,3 +37,5 @@ export const QRCode: React.FC<QRCodeProps> = ({ value, size = 148, caption, clas
     )}
   </div>
 );
+
+export default QRCode;

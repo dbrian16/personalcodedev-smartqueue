@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-omniqueue}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-omniqueue}
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -32,73 +34,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  ai-engine:
-    build:
-      context: ../apps/ai-engine
-    container_name: omniqueue_ai_engine
-    ports:
-      - "${AI_ENGINE_PORT:-5001}:${AI_ENGINE_PORT:-5001}"
-    environment:
-      - PORT=${AI_ENGINE_PORT:-5001}
-      - CORS_ORIGINS=${CORS_ORIGIN:-}
-    networks:
-      - omni_internal
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${AI_ENGINE_PORT:-5001}/health')"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
-  api-server:
-    build:
-      context: ../
-      dockerfile: apps/api-server/Dockerfile
-    container_name: omniqueue_api_server
-    ports:
-      - "${BACKEND_PORT:-5100}:5100"
-    environment:
-      - PORT=5100
-      - NODE_ENV=production
-      - USE_DATABASE=true
-      - DATABASE_URL=postgres://${POSTGRES_USER:-omniqueue}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-omniqueue}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-12h}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:?ADMIN_USERNAME is required}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
-      - STAFF_PIN=${STAFF_PIN:?STAFF_PIN is required}
-      - CORS_ORIGIN=${CORS_ORIGIN:-}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      # Redis is a hard requirement in this stack, so failing loudly is correct
-      # here — unlike a local run, where the in-process store takes over.
-      - QUEUE_STORE=redis
-      - REDIS_URL=redis://redis:6379
-      - AI_ENGINE_URL=http://ai-engine:${AI_ENGINE_PORT:-5001}
-      - AI_ENGINE_TIMEOUT_MS=${AI_ENGINE_TIMEOUT_MS:-2000}
-      - CUSTOMER_JWT_EXPIRES_IN=${CUSTOMER_JWT_EXPIRES_IN:-7d}
-      # Booking verification. The console provider only writes the code to the
-      # log; point OTP_PROVIDER at a real gateway before going live, or set
-      # OTP_ENABLED=false to skip verification entirely.
-      - OTP_ENABLED=${OTP_ENABLED:-true}
-      - OTP_PROVIDER=${OTP_PROVIDER:-console}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      ai-engine:
-        condition: service_healthy
-    networks:
-      - omni_internal
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5100/api/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
 networks:
   omni_internal:

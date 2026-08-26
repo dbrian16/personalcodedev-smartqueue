@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Catalog } from '@omni/shared';
 
-// The shapes live in @omni/shared, next to the Lead type the same endpoints
-// return. They used to be declared a second time here, so the two copies could
-// disagree about what /api/catalog answers with and nothing would flag it.
+// Re-exported from @omni/shared, where they sit next to the Lead type the same
+// endpoints return. Declaring them again here would let the two drift.
 export type { Catalog, CatalogService, CatalogHours, CatalogStatus } from '@omni/shared';
 
 const EMPTY: Catalog = {
@@ -27,15 +26,14 @@ const EMPTY: Catalog = {
 };
 
 /**
- * Reads the service catalogue and opening hours from the backend.
+ * Reads the service catalogue and opening hours from the backend, so all three
+ * front ends resolve the service list from one source.
  *
- * WHY this is shared: the service list used to be a hard-coded array copied into
- * the kiosk, the online portal and the staff console, so renaming a service meant
- * editing three front ends and any drift produced tickets in a queue nobody could
- * see. One fetch, one source of truth.
+ * A kiosk screen stays up all day, so the catalogue is also re-read on an
+ * interval to keep the open/closed banner current without a page reload.
  *
- * The open/closed banner needs to change without a page reload — a kiosk screen
- * stays up all day — so the catalogue is re-read on an interval as well.
+ * @param apiBase - Base URL of the API.
+ * @param refreshMs - How often to re-read the catalogue.
  */
 export const useCatalog = (apiBase: string, refreshMs = 60000) => {
   const [catalog, setCatalog] = useState<Catalog>(EMPTY);

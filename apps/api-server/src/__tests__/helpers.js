@@ -3,15 +3,13 @@ const request = require('supertest');
 const app = require('../app');
 const store = require('../store');
 
-const ADMIN = { userType: 'admin', username: 'admin', password: 'admin123' };
 const STAFF = { userType: 'staff', username: 'staff1', password: 'staff1' };
 
 /**
  * Opens the centre every day, around the clock, for the duration of a test run.
  *
- * WHY: the business rules are the thing under test, and most of them only fire
- * while the centre is open. Pinning the hours keeps a suite from passing at
- * 10:00 and failing at 18:00 or on a Sunday.
+ * Most business rules only fire while the centre is open, so pinning the hours
+ * keeps a suite from passing at 10:00 and failing at 18:00 or on a Sunday.
  */
 const openAlwaysSettings = {
   openDays: [0, 1, 2, 3, 4, 5, 6],
@@ -39,7 +37,6 @@ const login = async (credentials) => {
   return response.body;
 };
 
-const loginAdmin = () => login(ADMIN);
 const loginStaff = () => login(STAFF);
 
 /** Issues a walk-in ticket and returns the created lead. */
@@ -64,14 +61,10 @@ module.exports = {
   app,
   store,
   request,
-  ADMIN,
-  STAFF,
   setup,
   resetQueue,
-  loginAdmin,
   loginStaff,
   createWalkIn,
   patchLeadInStore,
-  minutesAgo,
-  openAlwaysSettings
+  minutesAgo
 };

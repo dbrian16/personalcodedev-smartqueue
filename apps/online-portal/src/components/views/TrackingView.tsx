@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, RefreshCw, XCircle, CalendarClock, Ticket } from 'lucide-react';
+import { Smartphone, RefreshCw, XCircle, CalendarClock, Ticket, ChevronLeft } from 'lucide-react';
 import { Toast } from '@omni/shared-ui';
 import { Lead } from '@omni/shared';
 import { formatScheduledLabel } from '../../helpers';
@@ -177,6 +177,17 @@ const TrackingView: React.FC<TrackingViewProps> = ({
             >
               <Ticket size={18} />
               <span>Book a new ticket</span>
+            </button>
+          )}
+
+          {/* Always leave a way back to the booking screen, in every ticket state. */}
+          {!isClosed && (
+            <button
+              onClick={onBook}
+              className="w-full flex items-center justify-center space-x-2 py-3 text-gray-500 font-bold rounded-2xl hover:bg-gray-50 transition-all text-sm"
+            >
+              <ChevronLeft size={16} />
+              <span>Back to booking</span>
             </button>
           )}
         </div>

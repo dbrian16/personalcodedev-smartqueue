@@ -8,8 +8,8 @@ const { LIVE_LEAD_STATUSES } = require('../config/constants');
 
 /**
  * Emits the updated queue state to connected admins and staff for specific positions.
- * WHY: We only send updates to relevant socket rooms to minimize network traffic
- * and ensure users only see data they are authorized for.
+ * Scoped to the relevant socket rooms to keep traffic down and to avoid pushing a
+ * queue to anyone not authorised to see it.
  *
  * @param {Array<string>} positions - Optional. specific positions to broadcast to.
  */
@@ -52,7 +52,7 @@ const calculateETAForPosition = async (positionLeads, positionName) => {
     lead.predictedWaitTime = prediction.estimatedWaitTimeMins;
     lead.queueStatus = prediction.queueStatus;
     // A lead cancelled between listing and writing must not fail the caller's
-    // request — an ETA refresh is best-effort by nature.
+    // request, since an ETA refresh is best-effort by nature.
     return store.saveLead(lead).catch((error) => {
       log.warn('updateETA: could not save lead', { id: lead.id, error: error.message });
     });
@@ -111,10 +111,9 @@ const closeLead = async (lead, status, reason) => {
 /**
  * Background maintenance.
  *
- * WHY: every one of these states could previously only be left by a manual staff
- * action. A member of staff who closed their tab left a ticket in Called or
- * Serving permanently: it blocked the counter, never reached the statistics, and
- * nothing in the system would ever move it.
+ * Without it, every one of these states can only be left by a manual staff
+ * action: a member of staff who closes their tab leaves a ticket in Called or
+ * Serving forever, blocking the counter and never reaching the statistics.
  *
  * @returns {Promise<{expired: number, autoNoShow: number, alerted: number}>}
  */
@@ -127,9 +126,9 @@ const runQueueMaintenance = async () => {
 
   for (const lead of allLeads) {
     try {
-      // Decision B4 is "serve everyone already issued", not "keep them forever".
-      // Without a day boundary, a ticket nobody got to yesterday reappears in
-      // this morning's queue ahead of every customer actually standing there.
+      // Serve everyone already issued, but not forever: without a day boundary a
+      // ticket nobody got to yesterday reappears in this morning's queue ahead of
+      // every customer actually standing there.
       if (LIVE_LEAD_STATUSES.includes(lead.status) && !settings.carryOverWaitingTickets) {
         const queuedOn = businessService.localDateKey(new Date(lead.effectiveQueueTime || lead.timestamp));
         if (queuedOn < today) {
@@ -209,7 +208,6 @@ const computeOnlineTiming = async (scheduledFor) => {
 };
 
 module.exports = {
-  emitQueueUpdated,
   updateAllETAs,
   runQueueMaintenance,
   computeOnlineTiming,

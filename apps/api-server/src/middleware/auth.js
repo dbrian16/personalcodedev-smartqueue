@@ -39,6 +39,5 @@ const requireAuth = (roles = []) => (req, res, next) => {
 module.exports = {
   generateToken,
   verifyToken,
-  getBearerToken,
   requireAuth
 };

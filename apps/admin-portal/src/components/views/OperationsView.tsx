@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
 import { API_BASE } from '@omni/shared';
-import { apiErrorMessage } from '@omni/shared-ui';
+import { apiErrorMessage, apiGet, apiPost, apiPut, apiDelete } from '@omni/shared-ui';
 import {
   Briefcase, Clock, Plus, Trash2, Loader2, Save, BrainCircuit,
   AlertCircle, CheckCircle2, Power
@@ -110,9 +109,9 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
   const load = useCallback(async () => {
     try {
       const [servicesRes, settingsRes, modelRes] = await Promise.all([
-        axios.get(`${API_BASE}/admin/services`, auth),
-        axios.get(`${API_BASE}/admin/settings`, auth),
-        axios.get(`${API_BASE}/admin/model`, auth)
+        apiGet(`${API_BASE}/admin/services`, auth),
+        apiGet(`${API_BASE}/admin/settings`, auth),
+        apiGet(`${API_BASE}/admin/model`, auth)
       ]);
       setServices(servicesRes.data);
       setSettings(settingsRes.data);
@@ -131,7 +130,7 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
     if (!settings) return;
     setSaving(true);
     try {
-      const { data } = await axios.put(`${API_BASE}/admin/settings`, settings, auth);
+      const { data } = await apiPut(`${API_BASE}/admin/settings`, settings, auth);
       setSettings(data);
       setMessage({ text: 'Operating rules saved. They take effect immediately.', type: 'success' });
     } catch (error) {
@@ -144,7 +143,7 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
   const addService = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE}/admin/services`, newService, auth);
+      await apiPost(`${API_BASE}/admin/services`, newService, auth);
       setNewService({ name: '', description: '', counters: 1 });
       setMessage({ text: 'Service added. It is now bookable from every portal.', type: 'success' });
       load();
@@ -155,7 +154,7 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
 
   const toggleService = async (service: ServiceRow) => {
     try {
-      await axios.put(`${API_BASE}/admin/services/${encodeURIComponent(service.name)}`, {
+      await apiPut(`${API_BASE}/admin/services/${encodeURIComponent(service.name)}`, {
         isActive: !service.isActive
       }, auth);
       load();
@@ -167,7 +166,7 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
   const removeService = async (service: ServiceRow) => {
     if (!window.confirm(`Remove "${service.name}"?`)) return;
     try {
-      const { data } = await axios.delete(`${API_BASE}/admin/services/${encodeURIComponent(service.name)}`, auth);
+      const { data } = await apiDelete(`${API_BASE}/admin/services/${encodeURIComponent(service.name)}`, auth);
       setMessage({ text: data.message || 'Service removed.', type: data.deactivated ? 'error' : 'success' });
       load();
     } catch (error) {
@@ -178,7 +177,7 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
   const trainModel = async () => {
     setTraining(true);
     try {
-      const { data } = await axios.post(`${API_BASE}/admin/model/train`, {}, auth);
+      const { data } = await apiPost(`${API_BASE}/admin/model/train`, {}, auth);
       setMessage({
         text: data.trained
           ? `Model retrained on ${data.samples} tickets — average error ${data.model_mae_mins} min vs ${data.baseline_mae_mins} min for the formula.`
@@ -420,7 +419,11 @@ const OperationsView: React.FC<{ token: string }> = ({ token }) => {
             </div>
             <div className="bg-gray-50 rounded-2xl p-4">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Training data</p>
-              <p className="font-black text-gray-800 text-sm mt-1">{model.availableSamples ?? 0} tickets</p>
+              {/* When a model is trained, show what it was trained on; otherwise how
+                  many served tickets are available for the next retrain. */}
+              <p className="font-black text-gray-800 text-sm mt-1">
+                {(model.trained ? (model.samples ?? model.availableSamples) : model.availableSamples) ?? 0} tickets
+              </p>
             </div>
             <div className="bg-gray-50 rounded-2xl p-4">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Average error</p>

@@ -1,11 +1,9 @@
 /**
  * The message the backend meant the user to read.
  *
- * WHY this is shared: `error.response?.data?.error || 'something failed'` was
- * written out in roughly twenty places across the three front ends, and half of
- * them forgot `data.message`. The global error handler always sends both fields,
- * so the two spellings are the same message — but a call site that checked only
- * one of them showed its generic fallback instead of the real reason.
+ * The global error handler sends the reason as both `data.error` and
+ * `data.message`, so both are checked here. Checking only one spelling falls
+ * through to the generic fallback even when the server explained itself.
  *
  * @param error - Whatever landed in the catch block; nothing is assumed of it.
  * @param fallback - Shown when the server said nothing useful (offline, CORS, 500).

@@ -3,9 +3,9 @@ const { toNumber, normalizeEmailValue, normalizePhoneValue } = require('../utils
 const { throwError } = require('../utils/AppError');
 const { ACTIVE_LEAD_STATUSES } = require('../config/constants');
 
-// A single key, deliberately without a TTL: keying by date silently dropped every
-// ticket at midnight, and refreshing a TTL only on create expired the whole queue
-// after a quiet day. Retention is a cleanup job's business, not the read path's.
+// A single key, deliberately without a TTL. Keying by date drops every ticket at
+// midnight, and a TTL refreshed only on create expires the whole queue after a
+// quiet day. Retention is a cleanup job's business, not the read path's.
 const LEADS_KEY = 'leads';
 const getLeadsKey = () => LEADS_KEY;
 
@@ -15,14 +15,14 @@ const timeOf = (value) => {
 };
 
 /**
- * Effective queue time — the single ordering key for the queue.
+ * Effective queue time: the single ordering key for the queue.
  *
- * WHY: ordering used to be decided by three overlapping rules (a priority flag, the
- * ticket source, and a timestamp that check-in silently reset), which made every
- * combination its own test case and meant a booked ticket queued exactly like a
- * walk-in. One key replaces all of it: a booking is ordered by its appointment time
- * or its arrival, whichever is later. Arriving early gains nothing; arriving late
- * costs the appointment; a walk-in can never be pushed back indefinitely.
+ * A booking is ordered by its appointment time or its arrival, whichever is
+ * later. Arriving early gains nothing, arriving late costs the appointment, and
+ * a walk-in can never be pushed back indefinitely.
+ *
+ * @param {Object} lead
+ * @returns {Date}
  */
 const computeEffectiveQueueTime = (lead) => {
   if (lead.effectiveQueueTime) return new Date(lead.effectiveQueueTime);
@@ -274,9 +274,9 @@ const createLeadDb = async (data) => {
       toNumber(data.queuePositionAtCreation) || 0,
       toNumber(data.activeStaffAtCreation) || 1,
       toNumber(data.averageServiceTimeAtCreation) || 0,
-      // Without this the column fell back to its 'Low' default, so a reservation
-      // created while no counter was open read as a short wait on Postgres and as
-      // "Unavailable" on the key-value store — the same ticket, two answers.
+      // Passed explicitly so Postgres and the key-value store agree. Falling back
+      // to the column default reports a reservation made with no counter open as
+      // a short wait on one backend and "Unavailable" on the other.
       data.queueStatus || 'Low'
     ]
   );
@@ -403,8 +403,8 @@ const saveLeadRedis = async (lead) => {
   const normalized = normalizeLead(lead);
   const leadsKey = getLeadsKey();
 
-  // hSet would happily resurrect a deleted lead, so require it to exist first —
-  // but report the miss instead of returning as if the write had succeeded.
+  // hSet would resurrect a deleted lead, so require it to exist first and report
+  // the miss rather than returning as if the write had succeeded.
   const exists = await redisClient.hExists(leadsKey, String(normalized.id));
   if (!exists) throwError(`Lead ${normalized.id} no longer exists in the queue store`, 404);
 
@@ -422,8 +422,9 @@ const saveLead = async (lead) => usingDb()
   : saveLeadRedis(lead);
 
 /**
- * Every still-live ticket held by one person — the basis for the per-customer cap
- *, the self-service cancel flow and lookup by contact detail.
+ * Every still-live ticket held by one person. Backs the per-customer cap, the
+ * self-service cancel flow and lookup by contact detail.
+ *
  * @param {{email?: string, phone?: string}} contact
  * @returns {Promise<Array<Object>>}
  */
@@ -443,8 +444,13 @@ const listActiveLeadsByContact = async ({ email, phone }) => {
 
 /**
  * Bookings already holding a place in the appointment slot that contains `slotStart`.
- * Used to enforce slot capacity — the old overload guard measured the queue at
- * the moment of booking, which says nothing about the slot being booked.
+ * Enforces slot capacity against the slot itself rather than against queue depth
+ * at the moment of booking.
+ *
+ * @param {string} service
+ * @param {Date} slotStart
+ * @param {Date} slotEnd
+ * @returns {Promise<number>}
  */
 const countBookingsInSlot = async (service, slotStart, slotEnd) => {
   const all = await listLeads(service, { includePending: true });
@@ -465,7 +471,6 @@ module.exports = {
   computeEffectiveQueueTime,
   normalizeLead,
   publicLead,
-  rowToLead,
   listLeads,
   getLeadById,
   getLeadByTicket,

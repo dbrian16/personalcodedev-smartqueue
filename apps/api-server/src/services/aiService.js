@@ -9,11 +9,32 @@
  * (queue depth × average service time ÷ staff on duty); the engine now learns
  * from completed tickets, and this is what feeds it.
  */
-const axios = require('axios');
 const config = require('../config');
 const store = require('../store');
 const log = require('../utils/logger');
 const { ACTIVE_STAFF_STATUSES } = require('../config/constants');
+
+/**
+ * JSON in, JSON out, with a timeout. That is the whole surface this file needs
+ * from the AI engine, so Node's own `fetch` covers it without an HTTP client.
+ *
+ * @param {string} url
+ * @param {{method?: string, body?: Object, timeoutMs?: number}} [options]
+ * @returns {Promise<Object>} The parsed JSON body.
+ */
+const fetchJson = async (url, { method = 'GET', body, timeoutMs } = {}) => {
+  const response = await fetch(url, {
+    method,
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
+  });
+  const data = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw new Error(`Request to ${url} failed with status ${response.status}`);
+  }
+  return { data };
+};
 
 const DEFAULT_AVERAGE_SERVICE_TIME_MINS = Number(process.env.DEFAULT_AVERAGE_SERVICE_TIME_MINS || 5);
 const MIN_AVERAGE_SERVICE_TIME_MINS = Number(process.env.MIN_AVERAGE_SERVICE_TIME_MINS || 1);
@@ -36,9 +57,11 @@ const clampServiceTimeMins = (value) => {
 };
 
 /**
- * The one place the busy-ness thresholds live. They used to be written out three
- * times as nested ternaries, so a change to "what counts as busy" meant finding
- * every copy. Mirrors `classify_queue_status` in the Python engine.
+ * The one place the busy-ness thresholds live. Mirrors `classify_queue_status`
+ * in the Python engine, so the two must be changed together.
+ *
+ * @param {number} etaMins
+ * @returns {string} 'Low' | 'Medium' | 'Busy'
  */
 const queueStatusFor = (etaMins) => {
   if (etaMins < 10) return 'Low';
@@ -63,11 +86,10 @@ const isActiveStaffStatus = (status) => ACTIVE_STAFF_STATUSES.includes(String(st
 /**
  * How many staff are actually on duty for a service line.
  *
- * WHY this no longer floors at 1: it used to return 1 when nobody was signed in,
- * which is how a service with an empty counter still quoted a confident wait time
- * for a ticket that could never be called. Zero is a real answer and the callers
- * are expected to say so rather than invent a number.
+ * Deliberately not floored at 1: zero is a real answer, and callers are expected
+ * to report it rather than quote a wait for a ticket nobody can call.
  *
+ * @param {string} position
  * @returns {Promise<number>} 0 when nobody is on duty.
  */
 const getActiveStaffCount = async (position) => {
@@ -200,14 +222,18 @@ const getAIWaitPredictions = async (queuePositions, positionName) => {
 
   try {
     const now = new Date();
-    const { data } = await axios.post(`${config.AI_ENGINE_URL}/predict_batch`, {
-      queue_positions: queuePositions,
-      average_service_time_mins: averageServiceTimeMins,
-      active_staff: activeStaff,
-      service_type: positionName,
-      hour: now.getHours(),
-      weekday: now.getDay()
-    }, { timeout: config.AI_ENGINE_TIMEOUT_MS });
+    const { data } = await fetchJson(`${config.AI_ENGINE_URL}/predict_batch`, {
+      method: 'POST',
+      body: {
+        queue_positions: queuePositions,
+        average_service_time_mins: averageServiceTimeMins,
+        active_staff: activeStaff,
+        service_type: positionName,
+        hour: now.getHours(),
+        weekday: now.getDay()
+      },
+      timeoutMs: config.AI_ENGINE_TIMEOUT_MS
+    });
 
     if (data && Array.isArray(data.predictions)) {
       return data.predictions.map(normaliseAIPrediction);
@@ -239,11 +265,11 @@ const getAIWaitPrediction = async (queuePosition, positionName) => {
 /**
  * Turns served tickets into supervised training rows.
  *
- * The label is the wait actually observed — from the moment the ticket became
- * queueable to the moment it was called — which is exactly the quantity the ETA
- * claims to predict. The features are the conditions recorded when the ticket was
- * issued, so the model learns from what the system knew at prediction time rather
- * than from hindsight.
+ * The label is the wait actually observed, from the moment the ticket became
+ * queueable to the moment it was called, which is the quantity the ETA predicts.
+ * The features are the conditions recorded at issue time, so the model learns
+ * from what the system knew at prediction time rather than from hindsight.
+ *
  * @returns {Promise<Array<Object>>}
  */
 const buildTrainingSamples = async () => {
@@ -289,11 +315,11 @@ const trainModel = async () => {
       return null;
     }
 
-    const { data } = await axios.post(
-      `${config.AI_ENGINE_URL}/train`,
-      { samples },
-      { timeout: Math.max(config.AI_ENGINE_TIMEOUT_MS * 10, 15000) }
-    );
+    const { data } = await fetchJson(`${config.AI_ENGINE_URL}/train`, {
+      method: 'POST',
+      body: { samples },
+      timeoutMs: Math.max(config.AI_ENGINE_TIMEOUT_MS * 10, 15000)
+    });
 
     log.info('ai:trained', data);
     return data;
@@ -305,7 +331,11 @@ const trainModel = async () => {
 
 /**
  * Conditions at issue time, stored on the ticket so it can later become a
- * training row. Best-effort by design — a failure here must not block a ticket.
+ * training row. Best-effort by design: a failure here must not block a ticket.
+ *
+ * @param {string} positionName
+ * @param {number} queuePosition
+ * @returns {Promise<Object>}
  */
 const captureModelContext = async (positionName, queuePosition) => {
   try {
@@ -329,7 +359,7 @@ const getModelStatus = async () => {
   if (!config.AI_ENGINE_URL) return { available: false, reason: 'AI_ENGINE_URL not configured' };
 
   try {
-    const { data } = await axios.get(`${config.AI_ENGINE_URL}/model`, { timeout: config.AI_ENGINE_TIMEOUT_MS });
+    const { data } = await fetchJson(`${config.AI_ENGINE_URL}/model`, { timeoutMs: config.AI_ENGINE_TIMEOUT_MS });
     return { available: true, ...data };
   } catch (error) {
     return { available: false, reason: error.message };
@@ -338,16 +368,6 @@ const getModelStatus = async () => {
 
 module.exports = {
   DEFAULT_AVERAGE_SERVICE_TIME_MINS,
-  MIN_AVERAGE_SERVICE_TIME_MINS,
-  MAX_AVERAGE_SERVICE_TIME_MINS,
-  clampServiceTimeMins,
-  queueStatusFor,
-  minutesBetween,
-  isActiveStaffStatus,
-  getActiveStaffCount,
-  getAverageServiceTimeMins,
-  normaliseAIPrediction,
-  analyticPrediction,
   getAIWaitPredictions,
   getAIWaitPrediction,
   buildTrainingSamples,

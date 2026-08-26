@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { CalendarDays, Loader2, AlertCircle } from 'lucide-react';
 import { API_BASE, AppointmentSlot, AvailabilityDay } from '@omni/shared';
-import { apiErrorMessage } from '@omni/shared-ui';
+import { apiErrorMessage, apiGet } from '@omni/shared-ui';
 import { formatDayLabel } from '../../helpers';
 
 interface SlotPickerProps {
@@ -14,11 +13,9 @@ interface SlotPickerProps {
 /**
  * Appointment slots, offered rather than typed.
  *
- * WHY this replaced the free date-time field: with no slot model, no capacity and
- * no opening hours, the form happily accepted 3:00 am on a Sunday, or a hundredth
- * booking for the same 2:00 pm. Every option shown here has already been checked
- * against the catalogue on the server, so what a customer can pick is what the
- * centre can actually serve.
+ * Every option shown here has already been checked against the catalogue on the
+ * server for opening hours, booking horizon and remaining capacity, so what a
+ * customer can pick is what the centre can actually serve.
  */
 const SlotPicker: React.FC<SlotPickerProps> = ({ service, value, onChange }) => {
   const [days, setDays] = useState<AvailabilityDay[]>([]);
@@ -37,8 +34,7 @@ const SlotPicker: React.FC<SlotPickerProps> = ({ service, value, onChange }) => 
     setLoading(true);
     setError('');
 
-    axios
-      .get(`${API_BASE}/online/availability`, { params: { service } })
+    apiGet(`${API_BASE}/online/availability?service=${encodeURIComponent(service)}`)
       .then(({ data }) => {
         if (cancelled) return;
         setDays(data.days || []);

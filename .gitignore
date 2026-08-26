@@ -21,9 +21,9 @@ dist
 # cache
 .eslintcache
 .cache
-.turbo
 __pycache__
 *.pyc
+.pytest_cache
 
 # ai-engine artefacts (fitted model + pip install marker)
 apps/ai-engine/model

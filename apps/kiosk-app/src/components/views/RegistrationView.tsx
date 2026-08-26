@@ -88,8 +88,8 @@ const RegistrationView: React.FC<RegistrationViewProps> = ({
           ))}
         </select>
 
-        {/* A ticket for a counter nobody is sitting at will never be called. The
-            system used to quote a confident wait time for exactly that case. */}
+        {/* A ticket for a counter nobody is sitting at will never be called, so
+            warn before issuing one rather than quoting a wait time. */}
         {noStaffOnSelected && (
           <div className="bg-orange-50 border border-orange-100 rounded-2xl p-3 flex items-start gap-2">
             <AlertTriangle size={14} className="text-orange-500 shrink-0 mt-0.5" />
@@ -98,7 +98,7 @@ const RegistrationView: React.FC<RegistrationViewProps> = ({
         )}
       </div>
 
-      {/* Offered, not demanded. A customer in a hurry may leave it blank — but
+      {/* Offered, not demanded. A customer in a hurry may leave it blank, but
           the consequence is spelled out rather than hidden, because ticket
           lookup and the duplicate check both need it. */}
       <div className="space-y-2">

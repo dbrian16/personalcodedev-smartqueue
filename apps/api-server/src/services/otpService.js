@@ -29,10 +29,7 @@ const providers = {
       code
     });
     return { delivered: true, via: 'console' };
-  },
-
-  /** Accepts the request and delivers nothing. For automated tests. */
-  noop: async () => ({ delivered: false, via: 'noop' })
+  }
 };
 
 const getProvider = () => providers[config.OTP_PROVIDER] || providers.console;
@@ -41,9 +38,9 @@ const isEnabled = () => config.OTP_ENABLED;
 
 /**
  * Issues a code bound to a destination and an arbitrary payload.
- * The payload is what the caller wants back once the code checks out — for a
- * booking that is the validated booking request, so the details cannot be swapped
- * between requesting the code and redeeming it.
+ * The payload is what the caller wants back once the code checks out. For a
+ * booking that is the validated booking request, so the details cannot be
+ * swapped between requesting the code and redeeming it.
  *
  * @param {{channel: 'phone'|'email', destination: string, purpose: string, payload: Object}} request
  * @returns {Promise<{challengeId: string, expiresAt: string, devCode?: string}>}
@@ -121,7 +118,5 @@ const verifyChallenge = async (challengeId, code, purpose) => {
 module.exports = {
   isEnabled,
   requestChallenge,
-  verifyChallenge,
-  CODE_LENGTH,
-  TTL_SECONDS
+  verifyChallenge
 };

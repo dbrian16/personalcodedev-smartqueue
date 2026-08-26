@@ -6,7 +6,6 @@ queue from a console, and administrators manage services, policy and analytics f
 dashboard. Wait times are estimated by a Python engine that starts from a queueing
 formula and learns from served tickets.
 
-
 ## Architecture
 
 Monorepo (npm workspaces): three React front ends, a Node.js/Express backend, and a
@@ -20,7 +19,7 @@ Python AI microservice.
 | `apps/api-server` | Node + Express | 5100 | REST API, Socket.IO, business rules, storage |
 | `apps/ai-engine` | Python + Flask | 5001 | Wait-time prediction model |
 | `packages/shared` | TypeScript | — | Shared types and endpoint constants |
-| `packages/shared-ui` | React | — | Shared components (`Toast`, `QRCode`, `useCatalog`, …) |
+| `packages/shared-ui` | React | — | Shared components and hooks (`Toast`, `useCatalog`, `useSocketRoom`) |
 
 **Backend layering:** Controller → Service → Store, with routing, business logic and
 data access strictly separated. The store is pluggable: in-process by default, Redis
@@ -39,7 +38,7 @@ npm start       # start all five services together
 Then open the kiosk at http://localhost:3100, the online portal at
 http://localhost:3103, and the admin/staff portal at http://localhost:3101.
 Default admin login is `admin` / `admin123`; staff are `staff1`–`staff6` (password
-same as username). These are development defaults — production requires real values
+same as username). These are development defaults; production requires real values
 via environment variables.
 
 A local run needs **no `.env` file**. To use PostgreSQL/Redis or the Docker stack,

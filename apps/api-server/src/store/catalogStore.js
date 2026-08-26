@@ -1,11 +1,9 @@
 /**
  * Service catalogue and operating settings.
  *
- * WHY: the service list used to be a hard-coded array duplicated in all three
- * front ends while the backend validated nothing, so any string created a ticket
- * in a queue no staff member could ever see. Opening hours and slot capacity did
- * not exist at all. Both now live here, behind one source of truth that the admin
- * screen owns.
+ * One source of truth, owned by the admin screen: the service list the front
+ * ends render and the backend validates against, plus opening hours and slot
+ * capacity. Changing policy here never means changing code.
  */
 const { getPool, getRedisClient, usingDb } = require('./connection');
 const { DEFAULT_BUSINESS_SETTINGS, SETTINGS_KEY_BUSINESS } = require('../config/constants');

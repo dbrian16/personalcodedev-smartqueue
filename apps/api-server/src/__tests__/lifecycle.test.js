@@ -29,7 +29,7 @@ describe('ticket creation', () => {
     const response = await request(app).post('/api/leads').send({ service: SERVICE });
 
     expect(response.status).toBe(201);
-    // Anonymous means anonymous — no fabricated contact detail standing in.
+    // Anonymous means anonymous: no fabricated contact detail standing in.
     expect(response.body.phone).toBe('');
     expect(response.body.email).toBe('');
   });
@@ -248,7 +248,7 @@ describe('transfer', () => {
     await request(app).patch(`/api/leads/${leadId}`).set(auth()).send({ status: 'Completed' });
   };
 
-  test('a waiting ticket cannot be transferred — only a called or serving one', async () => {
+  test('a waiting ticket cannot be transferred, only a called or serving one', async () => {
     const lead = await createWalkIn({ service: SERVICE, phone: '0900000011' });
 
     const response = await request(app)

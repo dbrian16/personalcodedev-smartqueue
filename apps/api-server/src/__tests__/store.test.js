@@ -28,7 +28,7 @@ describe('in-process key-value client', () => {
     expect(await client.hExists('leads', '1')).toBe(false);
   });
 
-  test('SET NX refuses a key that already exists — the basis of the lock', async () => {
+  test('SET NX refuses a key that already exists, the basis of the lock', async () => {
     expect(await client.set('lock:x', 'token-a', { NX: true, PX: 1000 })).toBe('OK');
     expect(await client.set('lock:x', 'token-b', { NX: true, PX: 1000 })).toBeNull();
   });

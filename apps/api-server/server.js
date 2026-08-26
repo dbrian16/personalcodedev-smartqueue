@@ -80,6 +80,5 @@ if (!config.isTest) {
 module.exports = {
   app,
   server,
-  store,
-  startServer
+  store
 };

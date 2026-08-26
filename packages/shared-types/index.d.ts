@@ -20,7 +20,7 @@ export interface Lead {
   tags?: string[];
   notes?: string;
   predictedWaitTime: number;
-  /** 'Unavailable' means no counter is open — not a zero-minute wait. */
+  /** 'Unavailable' means no counter is open, not a zero-minute wait. */
   queueStatus?: 'Low' | 'Medium' | 'Busy' | 'Unavailable';
   assignedPosition: string;
   timestamp: string | Date;

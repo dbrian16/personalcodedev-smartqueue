@@ -34,9 +34,9 @@ exports.updateAvailability = catchAsync(async (req, res) => {
 });
 
 /**
- * Derives per-staff throughput from the queue store when Postgres is not in use.
- * WHY: the stats were SQL-only, so on the Redis-backed setup every staff card
- * rendered 0 processed / 0m — indistinguishable from "no work done yet".
+ * Derives per-staff throughput from the queue store when Postgres is not in use,
+ * so the staff cards report real numbers on a Redis-backed setup too.
+ *
  * @returns {Promise<Object>} Map of staff username to { processed, avgSeconds }.
  */
 const computeStaffStatsFromStore = async () => {

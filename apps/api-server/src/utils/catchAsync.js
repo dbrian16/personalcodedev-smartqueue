@@ -1,7 +1,9 @@
 /**
- * Wrapper function to automatically catch errors from async controllers.
- * WHY: Helps eliminate repetitive try/catch blocks completely. Any error
- * generated from a promise will automatically be pushed (via next) to the Global Error Handler.
+ * Wraps an async controller so a rejected promise is forwarded to the global
+ * error handler via `next`, instead of a try/catch in every controller.
+ *
+ * @param {Function} fn - Async controller.
+ * @returns {Function} Express handler.
  */
 const catchAsync = (fn) => {
   return (req, res, next) => {

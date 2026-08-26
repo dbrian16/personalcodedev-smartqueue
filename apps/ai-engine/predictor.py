@@ -1,23 +1,20 @@
 """Wait-time prediction model.
 
-Previously, the code was "one division: people waiting
-x average service time / staff on duty". That division is still here — it is a
-sound queueing baseline and it is what answers before any history exists — but it
-is now the *floor*, not the whole story.
+Two layers. The bottom one is the queueing formula, people waiting x average
+service time / staff on duty, which answers before any history exists and
+whenever the model is unavailable.
 
-Once enough tickets have been served, a scikit-learn regressor is fitted on what
-actually happened: how long each ticket really waited, given the queue depth, the
-staffing and the time of day when it was issued. The model is only adopted if it
-beats the baseline on held-out data, so a bad fit can never make predictions worse
-than the formula it replaces.
+On top of it, once enough tickets have been served, a scikit-learn regressor is
+fitted on what actually happened: how long each ticket really waited, given the
+queue depth, the staffing and the time of day when it was issued. It is adopted
+only if it beats the formula on held-out data, so a bad fit cannot make
+predictions worse than the baseline it replaces.
 """
 from __future__ import annotations
 
 import json
 import math
 import os
-import threading
-from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 DEFAULT_AVERAGE_SERVICE_TIME_MINS = 5
@@ -85,7 +82,6 @@ class WaitTimePredictor:
     """Holds the fitted model, its vocabulary and its quality metrics."""
 
     def __init__(self):
-        self._lock = threading.Lock()
         self._model = None
         self._services = []
         self._metadata = {}
@@ -102,9 +98,10 @@ class WaitTimePredictor:
     def _featurise(self, sample):
         """One row: the raw conditions plus the baseline the model is correcting.
 
-        Handing the model the analytic estimate as a feature means it only has to
-        learn the *residual* — how this centre deviates from textbook queueing —
-        which is a far easier target on a few hundred tickets than the wait itself.
+        Passing the analytic estimate in as a feature leaves the model only the
+        residual to learn, meaning this centre's deviation from textbook
+        queueing. That is a far easier target on a few hundred tickets than the
+        wait itself.
         """
         position = to_number(sample.get("queue_position"), 0)
         staff = max(1.0, to_number(sample.get("active_staff"), 1))
@@ -159,10 +156,9 @@ class WaitTimePredictor:
 
     def reset(self):
         """Drops the fitted model. Used by tests to assert baseline behaviour."""
-        with self._lock:
-            self._model = None
-            self._services = []
-            self._metadata = {}
+        self._model = None
+        self._services = []
+        self._metadata = {}
 
     # ── inference ──────────────────────────────────────────────────────────
     @property
@@ -262,61 +258,60 @@ class WaitTimePredictor:
                 "required": MIN_TRAINING_SAMPLES,
             }
 
-        with self._lock:
-            previous_services = self._services
-            self._services = sorted({
-                (sample.get("service_type") or "").strip().lower() for sample in usable
-            })
+        previous_services = self._services
+        self._services = sorted({
+            (sample.get("service_type") or "").strip().lower() for sample in usable
+        })
 
-            try:
-                features = np.array([self._featurise(sample) for sample in usable], dtype=float)
-                targets = np.array(
-                    [to_number(sample.get("actual_wait_mins"), 0) for sample in usable], dtype=float
-                )
-                # Column 3 is the analytic estimate, which is the yardstick the
-                # model has to beat before it is allowed to replace it.
-                baselines = features[:, 3]
+        try:
+            features = np.array([self._featurise(sample) for sample in usable], dtype=float)
+            targets = np.array(
+                [to_number(sample.get("actual_wait_mins"), 0) for sample in usable], dtype=float
+            )
+            # Column 3 is the analytic estimate, which is the yardstick the
+            # model has to beat before it is allowed to replace it.
+            baselines = features[:, 3]
 
-                x_train, x_test, y_train, y_test, _, base_test = train_test_split(
-                    features, targets, baselines, test_size=0.25, random_state=42
-                )
+            x_train, x_test, y_train, y_test, _, base_test = train_test_split(
+                features, targets, baselines, test_size=0.25, random_state=42
+            )
 
-                model = GradientBoostingRegressor(
-                    n_estimators=200,
-                    learning_rate=0.05,
-                    max_depth=3,
-                    random_state=42,
-                )
-                model.fit(x_train, y_train)
+            model = GradientBoostingRegressor(
+                n_estimators=200,
+                learning_rate=0.05,
+                max_depth=3,
+                random_state=42,
+            )
+            model.fit(x_train, y_train)
 
-                model_mae = float(mean_absolute_error(y_test, model.predict(x_test)))
-                baseline_mae = float(mean_absolute_error(y_test, base_test))
+            model_mae = float(mean_absolute_error(y_test, model.predict(x_test)))
+            baseline_mae = float(mean_absolute_error(y_test, base_test))
 
-                if model_mae >= baseline_mae:
-                    self._services = previous_services
-                    return {
-                        "trained": False,
-                        "reason": "model did not beat the analytic baseline",
-                        "samples": len(usable),
-                        "model_mae_mins": round(model_mae, 2),
-                        "baseline_mae_mins": round(baseline_mae, 2),
-                    }
-
-                self._model = model
-                self._metadata = {
-                    "services": self._services,
+            if model_mae >= baseline_mae:
+                self._services = previous_services
+                return {
+                    "trained": False,
+                    "reason": "model did not beat the analytic baseline",
                     "samples": len(usable),
                     "model_mae_mins": round(model_mae, 2),
                     "baseline_mae_mins": round(baseline_mae, 2),
-                    "improvement_pct": round((1 - model_mae / baseline_mae) * 100, 1) if baseline_mae else 0,
-                    "trained_at": datetime.now(timezone.utc).isoformat(),
                 }
-                self._save_to_disk()
 
-                return {"trained": True, **self._metadata}
-            except Exception as exc:
-                self._services = previous_services
-                return {"trained": False, "reason": "training failed", "error": str(exc)}
+            self._model = model
+            self._metadata = {
+                "services": self._services,
+                "samples": len(usable),
+                "model_mae_mins": round(model_mae, 2),
+                "baseline_mae_mins": round(baseline_mae, 2),
+                "improvement_pct": round((1 - model_mae / baseline_mae) * 100, 1) if baseline_mae else 0,
+                "trained_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._save_to_disk()
+
+            return {"trained": True, **self._metadata}
+        except Exception as exc:
+            self._services = previous_services
+            return {"trained": False, "reason": "training failed", "error": str(exc)}
 
 
 predictor = WaitTimePredictor()

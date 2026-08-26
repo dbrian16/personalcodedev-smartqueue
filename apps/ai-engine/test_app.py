@@ -219,7 +219,7 @@ class TestModelTraining(unittest.TestCase):
         """The centre where every session runs at double the recorded average.
 
         The formula is systematically half of reality here, so a fitted model has
-        a real edge to find — exactly the case a learned estimator should handle.
+        a real edge to find, exactly the case a learned estimator should handle.
         """
         random.seed(7)
         samples = []

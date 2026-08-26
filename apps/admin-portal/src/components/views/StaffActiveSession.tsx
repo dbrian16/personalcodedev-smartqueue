@@ -79,7 +79,7 @@ const StaffActiveSession: React.FC<StaffActiveSessionProps> = ({
               </>
             ) : (
               <>
-                {/* Serving state — notes, tags, transfer */}
+                {/* Serving state: notes, tags, transfer */}
                 <div className="text-left space-y-4 mb-6 bg-gray-50 p-4 sm:p-6 rounded-3xl border border-gray-100">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Internal Notes</label>

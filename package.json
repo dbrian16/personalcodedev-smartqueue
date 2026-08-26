@@ -18,12 +18,10 @@
     "reset": "npm run reset --workspace=api-server",
     "docker:up": "docker-compose -f infrastructure/docker-compose.yml up -d",
     "docker:down": "docker-compose -f infrastructure/docker-compose.yml down",
-    "install:all": "npm install"
+    "seed": "node demo-seed.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "knip": "^6.15.0",
-    "turbo": "^2.9.16"
+    "concurrently": "^8.2.2"
   },
   "overrides": {
     "typescript": "^4.9.5"

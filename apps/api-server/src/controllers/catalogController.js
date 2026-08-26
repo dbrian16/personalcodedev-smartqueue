@@ -4,12 +4,9 @@ const businessService = require('../services/businessService');
 const { nowUtc } = require('../utils/validators');
 
 /**
- * The public face of the service catalogue.
- *
- * WHY: the service list was hard-coded and duplicated in the kiosk, the online
- * portal and the admin dashboard, so renaming a service meant editing three front
- * ends and any typo created a ticket in a queue nobody serves. All three now read
- * it from here.
+ * The public face of the service catalogue. The kiosk, the online portal and the
+ * admin dashboard all read the service list from here, so a rename lands in one
+ * place and no front end can invent a queue nobody serves.
  */
 exports.getCatalog = catchAsync(async (_req, res) => {
   const [services, settings, availability] = await Promise.all([
@@ -23,8 +20,7 @@ exports.getCatalog = catchAsync(async (_req, res) => {
   const lastTicketAt = opening.closesAt - settings.lastTicketBeforeCloseMinutes;
 
   // Staff actually signed in per service line. Published so a kiosk can warn
-  // before issuing a ticket for a counter nobody is sitting at — the system used
-  // to assume one person was always on duty and quote a wait time regardless.
+  // before issuing a ticket for a counter nobody is sitting at.
   const staffOnline = availability.reduce((counts, entry) => {
     if (!['online', 'busy'].includes(String(entry.status).toLowerCase())) return counts;
     counts[entry.position] = (counts[entry.position] || 0) + 1;

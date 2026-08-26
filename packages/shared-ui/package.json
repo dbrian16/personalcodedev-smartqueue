@@ -5,11 +5,10 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --target es2020 --external react,react-dom,lucide-react,qrcode.react,socket.io-client,@omni/shared"
+    "build": "tsup src/index.ts --format cjs,esm --dts --target es2020 --external react,react-dom,lucide-react,socket.io-client,@omni/shared"
   },
   "dependencies": {
-    "lucide-react": "^0.577.0",
-    "qrcode.react": "^4.2.0"
+    "lucide-react": "^0.577.0"
   },
   "peerDependencies": {
     "@omni/shared": "*",

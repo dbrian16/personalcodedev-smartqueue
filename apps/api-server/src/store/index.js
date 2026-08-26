@@ -40,14 +40,15 @@ const closeQuietly = async (client) => {
 };
 
 /**
- * Resolves to the client, or rejects, within `timeoutMs` — whatever node-redis does.
+ * Races `client.connect()` against a deadline.
  *
- * WHY this exists: with a reconnect strategy that always returns a delay, a
- * `connect()` against a port nothing is listening on never settles. node-redis
- * simply keeps retrying, so `await connectRedis()` hung forever and the server
- * never reached `listen()` — no error, no exit, just a process printing
- * "Redis reconnecting..." until it was killed. A bounded race is what turns that
- * into a failure the caller can actually handle.
+ * The reconnect strategy always returns a delay, so a connect against a port
+ * nothing is listening on never settles by itself. The deadline turns that into
+ * a rejection the caller can handle.
+ *
+ * @param {Object} client
+ * @param {number} timeoutMs
+ * @returns {Promise<Object>} The connected client.
  */
 const connectWithDeadline = (client, timeoutMs) => new Promise((resolve, reject) => {
   let settled = false;
@@ -76,10 +77,11 @@ const connectWithDeadline = (client, timeoutMs) => new Promise((resolve, reject)
 
 /**
  * Connects to Redis, retrying a few times before giving up.
- * WHY: Redis is the lock manager, the socket adapter backend and — when Postgres
- * is disabled — the only datastore. A swallowed connect error used to leave the
- * process without a client for its whole lifetime, which reads as an empty queue
- * rather than as an outage.
+ *
+ * Redis backs the locks, the socket adapter and, when Postgres is disabled, the
+ * queue itself. The error is thrown rather than swallowed: a process left
+ * without a client reads as an empty queue instead of an outage.
+ *
  * @param {{attempts?: number, timeoutMs?: number}} [options]
  * @returns {Promise<Object>} A connected redis client.
  */
@@ -121,10 +123,10 @@ const connectRedis = async (options = {}) => {
 /**
  * Picks the key-value backend.
  *
- * WHY: a missing Redis used to abort startup, which made "run it locally" mean
- * "install and run Redis first". QUEUE_STORE=auto keeps the Redis upgrade path
- * while letting a bare checkout boot with nothing installed; production still
- * defaults to `redis` and therefore still fails loudly if Redis is gone.
+ * `auto` lets a bare checkout boot with nothing installed while keeping the
+ * Redis upgrade path open. Production defaults to `redis`, which fails loudly
+ * when Redis is unreachable.
+ *
  * @returns {Promise<Object>} A ready key-value client.
  */
 const connectKeyValueStore = async () => {
@@ -150,9 +152,11 @@ const connectKeyValueStore = async () => {
 };
 
 /**
- * Folds the old per-day `leads:YYYY-MM-DD` hashes into the single `leads` hash.
- * WHY: the date-keyed layout dropped every ticket at midnight. Existing tickets
- * are merged once so switching key layouts does not orphan them.
+ * Folds legacy per-day `leads:YYYY-MM-DD` hashes into the single `leads` hash.
+ *
+ * The date-keyed layout dropped every ticket at midnight. Merging once on boot
+ * keeps tickets written under that layout reachable.
+ *
  * @param {Object} redisClient
  * @returns {Promise<void>}
  */
@@ -324,6 +328,9 @@ const initStore = async () => {
 
     await currentPool.query(MIGRATIONS);
 
+    // Align the sequence with existing tickets. The third argument (is_called)
+    // is false on an empty table so the first ticket is TKT-1, matching the
+    // in-process store; with tickets present it resumes at MAX + 1.
     await currentPool.query(`
       SELECT setval(
         'ticket_counter',
@@ -337,7 +344,8 @@ const initStore = async () => {
             WHERE ticket_number ~ '^TKT-[0-9]+$'
           ),
           1
-        )
+        ),
+        EXISTS (SELECT 1 FROM leads WHERE ticket_number ~ '^TKT-[0-9]+$')
       );
     `);
 

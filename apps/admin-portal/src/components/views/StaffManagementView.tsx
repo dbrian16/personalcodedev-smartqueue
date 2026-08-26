@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { API_BASE } from '@omni/shared';
-import { useCatalog, apiErrorMessage } from '@omni/shared-ui';
-import { UserPlus, UserCog, UserX, UserCheck, Shield, Clock, Loader2, Trash2 } from 'lucide-react';
+import { useCatalog, apiErrorMessage, apiGet, apiPost, apiPut, apiDelete } from '@omni/shared-ui';
+import { UserPlus, UserCog, UserX, UserCheck, Shield, Clock, Loader2, Trash2, KeyRound, RefreshCw, Copy, Check } from 'lucide-react';
 
 interface StaffAccount {
   username: string;
@@ -20,10 +19,8 @@ interface StaffManagementViewProps {
 }
 
 const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
-  // The assignment list is the live catalogue, not a copy. It was hard-coded to
-  // three names here, so a service an administrator added on the Operations
-  // screen could never be assigned to anyone — and a renamed one silently
-  // assigned staff to a queue the backend would reject.
+  // Read from the live catalogue rather than a local list, so a service added or
+  // renamed on the Operations screen is assignable here straight away.
   const { services } = useCatalog(API_BASE);
 
   const [accounts, setAccounts] = useState<StaffAccount[]>([]);
@@ -40,9 +37,18 @@ const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
     isActive: true
   });
 
+  // Dedicated password-reset flow, separate from the full edit form so an admin
+  // can help a staff member who is locked out without touching anything else.
+  const [resetTarget, setResetTarget] = useState<StaffAccount | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [resetError, setResetError] = useState('');
+
   const fetchAccounts = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE}/admin/staff-accounts`, {
+      const response = await apiGet(`${API_BASE}/admin/staff-accounts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAccounts(response.data);
@@ -65,11 +71,11 @@ const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
       if (editingUsername) {
         const payload: any = { ...formData };
         if (!payload.password) delete payload.password; // Don't update password if empty
-        await axios.put(`${API_BASE}/admin/staff-accounts/${editingUsername}`, payload, {
+        await apiPut(`${API_BASE}/admin/staff-accounts/${editingUsername}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post(`${API_BASE}/admin/staff-accounts`, formData, {
+        await apiPost(`${API_BASE}/admin/staff-accounts`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -104,13 +110,70 @@ const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
   const handleDelete = async (username: string) => {
     if (!window.confirm(`Are you sure you want to delete account @${username}?`)) return;
     try {
-      await axios.delete(`${API_BASE}/admin/staff-accounts/${username}`, {
+      await apiDelete(`${API_BASE}/admin/staff-accounts/${username}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchAccounts();
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to delete account'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // ── Password reset ──────────────────────────────────────────────────────
+  /** A readable temporary password: no ambiguous characters (0/O, 1/l/I). */
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    const pick = () => chars[Math.floor(Math.random() * chars.length)];
+    return Array.from({ length: 10 }, pick).join('');
+  };
+
+  const openResetModal = (acc: StaffAccount) => {
+    setResetTarget(acc);
+    setNewPassword('');
+    setResetDone(false);
+    setResetError('');
+    setCopied(false);
+  };
+
+  const closeResetModal = () => {
+    setResetTarget(null);
+    setNewPassword('');
+    setResetDone(false);
+    setResetError('');
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTarget) return;
+    if (newPassword.trim().length < 4) {
+      setResetError('Password must be at least 4 characters.');
+      return;
+    }
+    setResetSaving(true);
+    setResetError('');
+    try {
+      // Reuses the staff-account update endpoint; only the password is sent.
+      await apiPut(
+        `${API_BASE}/admin/staff-accounts/${resetTarget.username}`,
+        { password: newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setResetDone(true);
+    } catch (err) {
+      setResetError(apiErrorMessage(err, 'Could not reset the password.'));
+    } finally {
+      setResetSaving(false);
+    }
+  };
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(newPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (e.g. insecure context): the admin can still read it.
     }
   };
 
@@ -175,13 +238,20 @@ const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
             </div>
 
             <div className="flex space-x-3">
-              <button 
+              <button
                 onClick={() => openEditModal(acc)}
                 className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors"
               >
                 EDIT CONFIGURATION
               </button>
-              <button 
+              <button
+                onClick={() => openResetModal(acc)}
+                className="px-4 py-3 bg-amber-50 text-amber-700 rounded-xl font-bold hover:bg-amber-100 transition-colors flex items-center justify-center"
+                title="Reset password"
+              >
+                <KeyRound size={18} />
+              </button>
+              <button
                 onClick={() => handleDelete(acc.username)}
                 className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center justify-center"
                 title="Delete Account"
@@ -291,6 +361,103 @@ const StaffManagementView: React.FC<StaffManagementViewProps> = ({ token }) => {
                 {loading ? <Loader2 className="animate-spin" /> : editingUsername ? 'SAVE CHANGES' : 'CREATE ACCOUNT'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset password modal ─────────────────────────────────────────── */}
+      {resetTarget && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-amber-500 p-6 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
+                  <KeyRound size={20} /> Reset Password
+                </h3>
+                <p className="text-xs font-bold text-amber-100 uppercase tracking-widest mt-1">
+                  {resetTarget.displayName} · @{resetTarget.username}
+                </p>
+              </div>
+              <button onClick={closeResetModal} className="text-amber-100 hover:text-white p-2">
+                <UserX size={24} />
+              </button>
+            </div>
+
+            {!resetDone ? (
+              <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+                {resetError && (
+                  <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold border border-red-100">
+                    {resetError}
+                  </div>
+                )}
+
+                <p className="text-sm text-gray-500 font-medium">
+                  Set a new password for this staff member. Use <b>Generate</b> for a random
+                  temporary one, then share it with them so they can sign in and change it.
+                </p>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">New Password</label>
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Type or generate a password"
+                      className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold focus:border-amber-500 focus:bg-white outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setNewPassword(generatePassword())}
+                      className="px-4 py-3 bg-amber-50 text-amber-700 rounded-xl font-bold text-sm hover:bg-amber-100 transition-colors flex items-center gap-1 whitespace-nowrap"
+                      title="Generate a temporary password"
+                    >
+                      <RefreshCw size={16} /> Generate
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={resetSaving}
+                  className="w-full py-4 mt-2 bg-amber-500 text-white rounded-xl font-black tracking-widest flex justify-center items-center gap-2 hover:bg-amber-600 transition-colors disabled:opacity-70"
+                >
+                  {resetSaving ? <Loader2 className="animate-spin" /> : <><KeyRound size={16} /> SET NEW PASSWORD</>}
+                </button>
+              </form>
+            ) : (
+              <div className="p-6 space-y-4">
+                <div className="bg-green-50 border border-green-100 text-green-700 p-3 rounded-xl text-sm font-bold flex items-center gap-2">
+                  <Check size={16} /> Password reset for {resetTarget.displayName}.
+                </div>
+
+                <div>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1 mb-2">
+                    New password — share it securely
+                  </p>
+                  <div className="flex items-center gap-2 bg-gray-900 rounded-xl p-4">
+                    <code className="flex-1 text-lg font-black text-white tracking-wider break-all">{newPassword}</code>
+                    <button
+                      onClick={copyPassword}
+                      className="px-3 py-2 bg-gray-700 text-white rounded-lg font-bold text-xs hover:bg-gray-600 transition-colors flex items-center gap-1 shrink-0"
+                    >
+                      {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-bold text-gray-400 mt-2 ml-1">
+                    @{resetTarget.username} can sign in with this immediately. This is the only time it is shown.
+                  </p>
+                </div>
+
+                <button
+                  onClick={closeResetModal}
+                  className="w-full py-4 bg-gray-900 text-white rounded-xl font-black tracking-widest hover:bg-black transition-colors"
+                >
+                  DONE
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

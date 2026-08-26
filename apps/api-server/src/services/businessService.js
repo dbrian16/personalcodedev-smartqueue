@@ -1,11 +1,9 @@
 /**
  * Business rules.
  *
- * Everything the backend used to take on trust lives here: whether a service
+ * One place for everything the backend must not take on trust: whether a service
  * exists, whether the centre is open, whether a slot still has room, and how far
- * ahead a customer may book. Before this, the service name was free text, a
- * 3:00 am Sunday booking succeeded, and the only overload guard measured the
- * queue at the moment of booking rather than the slot being booked.
+ * ahead a customer may book.
  */
 const store = require('../store');
 const { throwError } = require('../utils/AppError');
@@ -25,7 +23,7 @@ const parseClock = (value) => {
 
 const minutesIntoDay = (date) => date.getHours() * 60 + date.getMinutes();
 
-/** Local calendar date as YYYY-MM-DD — the form holidays are stored in. */
+/** Local calendar date as YYYY-MM-DD, the form holidays are stored in. */
 const localDateKey = (date) => {
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -133,8 +131,8 @@ const validateBookingTime = async (service, scheduledForRaw, at = nowUtc()) => {
   const scheduledFor = requested || at;
 
   if (requested && requested.getTime() < at.getTime()) {
-    // Previously this was silently moved to "now", so the customer believed they
-    // held a 9:00 am slot while the system held one for the present moment.
+    // Rejected rather than snapped to "now", which would leave the customer
+    // believing they hold a 9:00 am slot the system booked for the present.
     throwError('That appointment time is already in the past. Please choose a later time.');
   }
 
@@ -166,9 +164,8 @@ const validateBookingTime = async (service, scheduledForRaw, at = nowUtc()) => {
 };
 
 /**
- * Per-customer ticket cap: one live ticket per service,
- * across at most two services. Without it one person — or one script — could hold
- * every slot of a session.
+ * Per-customer ticket cap: one live ticket per service, across at most two
+ * services. Without it a single person or script could hold every slot.
  */
 const assertCustomerCanHoldAnother = async ({ email, phone, service }) => {
   const settings = await getSettings();
@@ -204,7 +201,6 @@ module.exports = {
   describeOpening,
   requireService,
   assertAcceptingWalkIns,
-  slotBounds,
   slotCapacityFor,
   validateBookingTime,
   assertCustomerCanHoldAnother

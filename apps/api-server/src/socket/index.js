@@ -21,9 +21,9 @@ const initSocket = async (server) => {
     }
   });
 
-  // The Redis adapter exists to fan events out across several backend instances.
-  // On the in-process store there is exactly one instance, and dialling a Redis
-  // that is not running is what used to stop the server from booting at all.
+  // The Redis adapter fans events out across several backend instances. On the
+  // in-process store there is exactly one instance, so it is skipped rather than
+  // dialling a Redis that is not running.
   if (!isMemoryStore()) {
     const pubClient = Redis.createClient({ url: config.REDIS_URL });
     const subClient = pubClient.duplicate();
@@ -91,7 +91,7 @@ const initSocket = async (server) => {
   return io;
 };
 
-/** True once initSocket has run — lets background jobs stay quiet before boot. */
+/** True once initSocket has run, so background jobs stay quiet before boot. */
 const hasIo = () => !!io;
 
 const emitToAdmins = (event, payload) => {
@@ -135,10 +135,6 @@ module.exports = {
   hasIo,
   emitToAdmins,
   emitToPosition,
-  emitToTicket,
   broadcastLead,
-  closeSocket,
-  ADMIN_ROOM,
-  positionRoom,
-  ticketRoom
+  closeSocket
 };

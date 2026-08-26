@@ -1,6 +1,6 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════
-REM  Omni-Queue 360 — Database Reset Script
+REM  Omni-Queue 360 - Database Reset Script
 REM  Drops and recreates the database for a clean test run.
 REM ═══════════════════════════════════════════════════════════════
 SETLOCAL
@@ -13,8 +13,8 @@ SET DB_NAME=omniqueue
 SET PGPASSWORD=%PG_PASSWORD%
 
 echo.
-echo ╔══════════════════════════════════════════════════════╗
-echo ║  Omni-Queue 360 — Database Reset                    ║
+echo ╔══════════════════════════════════════════════════════�-
+echo ║  Omni-Queue 360 - Database Reset                    ║
 echo ╚══════════════════════════════════════════════════════╝
 echo.
 
@@ -66,7 +66,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo ╔══════════════════════════════════════════════════════╗
+echo ╔══════════════════════════════════════════════════════�-
 echo ║  DONE! Database reset complete.                     ║
 echo ║                                                     ║
 echo ║  All data cleared. Tables will be recreated         ║

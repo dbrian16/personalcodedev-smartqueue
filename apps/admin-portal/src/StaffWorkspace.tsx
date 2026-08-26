@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, LogOut, ShieldCheck, Briefcase, ArrowLeftRight } from 'lucide-react';
-import axios from 'axios';
+import { Users, LogOut, ShieldCheck, Briefcase } from 'lucide-react';
 import { Lead, API_BASE, SOCKET_URL } from '@omni/shared';
-import { Toast, useCatalog, useSocketRoom, apiErrorMessage } from '@omni/shared-ui';
+import { Toast, useCatalog, useSocketRoom, apiErrorMessage, apiGet, apiPost, apiPatch } from '@omni/shared-ui';
 import { UserMeta } from './types';
 import StaffActiveSession from './components/views/StaffActiveSession';
 import StaffWaitQueue from './components/views/StaffWaitQueue';
@@ -44,7 +43,7 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
   const fetchLeads = useCallback(async () => {
     if (!token) return;
     try {
-      const { data } = await axios.get<Lead[]>(
+      const { data } = await apiGet<Lead[]>(
         `${API_BASE}/leads?position=${encodeURIComponent(activeCounter)}`,
         getAuthConfig()
       );
@@ -61,7 +60,7 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
   useEffect(() => {
     if (!token || !displayName || !activeCounter) return;
     const active = activeLead?.status === 'Serving' || activeLead?.status === 'Called';
-    axios.post(`${API_BASE}/admin/availability`, {
+    apiPost(`${API_BASE}/admin/availability`, {
       staffId: displayName,
       status: active ? 'busy' : 'online',
       position: activeCounter
@@ -84,9 +83,9 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
   /**
-   * Every counter action is the same shape: call the server, refresh the line,
-   * then say what happened — or show why it did not. Writing that once means a
-   * new action cannot forget the refresh or swallow the server's explanation.
+   * Every counter action has the same shape: call the server, refresh the line,
+   * then report what happened or why it did not. Written once so a new action
+   * cannot forget the refresh or swallow the server's explanation.
    */
   const runAction = async <T,>(
     failureMessage: string,
@@ -106,7 +105,7 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
   // into a deliberate one on the server side.
   const callNextCustomer = () => runAction<Lead>(
     'Failed to call next customer',
-    () => axios.post(
+    () => apiPost(
       `${API_BASE}/staff/call-next`,
       { position: activeCounter, coveringFor: isCovering },
       getAuthConfig()
@@ -119,34 +118,34 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
 
   const recallCustomer = (leadId: number) => runAction<{ message?: string; autoNoShow?: boolean }>(
     'Failed to recall',
-    () => axios.post(`${API_BASE}/staff/recall/${leadId}`, { coveringFor: isCovering }, getAuthConfig()),
-    // Decision B2: the last permitted recall converts the ticket to a no-show,
-    // so the counter is told what actually happened rather than "recalled".
+    () => apiPost(`${API_BASE}/staff/recall/${leadId}`, { coveringFor: isCovering }, getAuthConfig()),
+    // The last permitted recall converts the ticket to a no-show, so the counter
+    // is told what actually happened rather than "recalled".
     (data) => showToast(data.message || 'Customer recalled', data.autoNoShow ? 'error' : 'success')
   );
 
   const markNoShow = (leadId: number) => runAction(
     'Failed to mark No-Show',
-    () => axios.post(`${API_BASE}/staff/no-show/${leadId}`, { coveringFor: isCovering }, getAuthConfig()),
+    () => apiPost(`${API_BASE}/staff/no-show/${leadId}`, { coveringFor: isCovering }, getAuthConfig()),
     () => showToast('Marked as No-Show', 'success')
   );
 
   const handleStatusUpdate = (id: number, status: string) => runAction(
     'Failed to update status',
-    () => axios.patch(`${API_BASE}/leads/${id}`, { status, coveringFor: isCovering }, getAuthConfig()),
+    () => apiPatch(`${API_BASE}/leads/${id}`, { status, coveringFor: isCovering }, getAuthConfig()),
     () => showToast(`Status updated to ${status}`, 'success')
   );
 
   const handleTransfer = (id: number, newService: string) => runAction(
     'Failed to transfer',
-    () => axios.post(`${API_BASE}/leads/${id}/transfer`, { newService }, getAuthConfig()),
+    () => apiPost(`${API_BASE}/leads/${id}/transfer`, { newService }, getAuthConfig()),
     () => showToast(`Transferred to ${newService}`, 'success')
   );
 
   // Notes save silently: the counter is typing, not waiting for confirmation.
   const handleUpdateNotesTags = (id: number, notes: string, tags: string[]) => runAction(
     'Failed to update notes',
-    () => axios.patch(`${API_BASE}/leads/${id}`, { notes, tags, coveringFor: isCovering }, getAuthConfig())
+    () => apiPatch(`${API_BASE}/leads/${id}`, { notes, tags, coveringFor: isCovering }, getAuthConfig())
   );
 
   const startCovering = (service: string) => {
@@ -195,23 +194,9 @@ const StaffWorkspace = ({ token, userMeta, onLogout }: StaffWorkspaceProps) => {
         </button>
       </nav>
 
-      {isCovering && (
-        <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <ArrowLeftRight size={16} />
-            <span>
-              You are covering <b>{coveringService}</b>. Your own counter is {assignedService}.
-              Every action here is recorded against the cover.
-            </span>
-          </div>
-          <button
-            onClick={() => startCovering(assignedService)}
-            className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700"
-          >
-            Back to my counter
-          </button>
-        </div>
-      )}
+      {/* Covering another counter is a deliberate, allowed action, so no warning
+          banner is shown. The counter selector still indicates the active line and
+          lets staff switch back, and every covered action is still logged server-side. */}
 
       {/* Mobile counter selector */}
       <div className="md:hidden px-4 pt-3">

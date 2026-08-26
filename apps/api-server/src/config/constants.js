@@ -44,9 +44,9 @@ module.exports = {
    */
   DEFAULT_BUSINESS_SETTINGS: {
     // Fixed opening hours for the whole centre; 30-minute appointment slots
-    openDays: [1, 2, 3, 4, 5],
-    openTime: '08:00',
-    closeTime: '17:00',
+    openDays: [0, 1, 2, 3, 4, 5, 6],
+    openTime: '00:00',
+    closeTime: '23:59',
     holidays: [],
     slotMinutes: 30,
     // Book at most 7 days ahead

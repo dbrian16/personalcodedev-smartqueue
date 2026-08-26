@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle, RefreshCcw, UserCheck, Star, XCircle } from 'lucide-react';
-import { QRCode } from '@omni/shared-ui';
+import { QRCode } from '../QRCode';
 import { Lead, trackingUrlFor } from '@omni/shared';
 import { useLanguage } from '../../contexts/LanguageContext';
 

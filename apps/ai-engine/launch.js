@@ -2,12 +2,9 @@
 /**
  * Cross-platform launcher for the Python AI engine.
  *
- * WHY: the npm script used to be `pip install -r requirements.txt && python app.py`.
- * That assumed a `python`/`pip` pair on PATH (false on a stock Windows box, where the
- * launcher is `py`) and it reinstalled every dependency on every single boot, which
- * added ~20s to each `npm start`. This resolves the interpreter once, installs only
- * when requirements.txt actually changed, and never blocks startup on a failed
- * install — the Node backend has a graceful ETA fallback for exactly that case.
+ * Resolves the interpreter once (a stock Windows box has `py`, not `python`),
+ * installs only when requirements.txt has changed, and never blocks startup on a
+ * failed install, since the Node backend falls back to its analytic ETA.
  */
 const { spawn, spawnSync } = require('child_process');
 const crypto = require('crypto');
@@ -70,7 +67,7 @@ const main = () => {
       fs.writeFileSync(STAMP, requirementsHash());
       console.log('[ai-engine] Dependencies ready.');
     } else {
-      console.warn('[ai-engine] pip install failed. Starting anyway — the model falls back to');
+      console.warn('[ai-engine] pip install failed. Starting anyway; the model falls back to');
       console.warn('[ai-engine] the analytic estimator when scikit-learn is unavailable.');
     }
   }

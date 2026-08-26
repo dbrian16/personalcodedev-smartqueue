@@ -30,9 +30,9 @@ const lockError = (message, name, statusCode) => {
  * Release and extend, expressed once per backend.
  *
  * Redis needs Lua because the read and the write are two round trips and another
- * client can win the key in between. The in-process backend has no such window —
- * Node runs the compare and the write in one turn of the event loop — so it does
- * the same check directly rather than shipping a script no interpreter would read.
+ * client can win the key in between. The in-process backend has no such window,
+ * since Node runs the compare and the write in one turn of the event loop, so it
+ * does the same check directly instead of shipping a script nothing would read.
  */
 const release = async (client, lockKey, token) => {
   if (client.isMemory) {
@@ -53,11 +53,10 @@ const extend = async (client, lockKey, token, duration) => {
 /**
  * Runs a routine while holding an exclusive lock on the first resource.
  *
- * WHY the rewrite: the previous implementation stored a constant value and
- * released with an unconditional DEL, so a routine that outlived its TTL would
- * delete a lock another request had since acquired — exactly the double-call
- * race the lock exists to prevent. It also ran the routine *without* a lock
- * whenever Redis was unreachable, which turned an outage into silent corruption.
+ * The lock stores a per-holder token and releases only if it still matches, so a
+ * routine that outlives its TTL cannot delete a lock another request has since
+ * acquired. If the lock backend is unreachable the call fails rather than running
+ * unlocked, since an outage must not become silent corruption.
  *
  * @param {Array<string>} resources - Resource names; the first one is locked.
  * @param {number} duration - Lock TTL in ms. The lock is renewed while held.
@@ -81,8 +80,8 @@ const using = async (resources, duration, routine) => {
   const signal = { aborted: false };
   const renewIntervalMs = Math.max(Math.floor(duration / LOCK_RENEWALS_PER_TTL), LOCK_RENEW_MIN_INTERVAL_MS);
 
-  // Renewing while the routine runs means a slow request (AI call, ETA rewrite)
-  // no longer loses its lock mid-flight.
+  // Renewed while the routine runs so a slow request (AI call, ETA rewrite)
+  // cannot lose its lock mid-flight.
   const renewTimer = setInterval(async () => {
     try {
       const extended = await extend(client, lockKey, token, duration);
@@ -113,12 +112,9 @@ const using = async (resources, duration, routine) => {
 const DEFAULT_LOCK_TTL_MS = 5000;
 
 /**
- * The way every controller actually wants to take a queue lock.
- *
- * Each call site used to repeat three things: the `locks:` key prefix, the
- * `signal.aborted` guard, and — in the staff console — a try/catch turning a
- * contended lock into a 409 with the message written out twice. All of it is
- * here once now.
+ * The way every controller takes a queue lock: the `locks:` key prefix, the
+ * `signal.aborted` guard, and the try/catch that turns a contended lock into a
+ * 409, all in one place.
  *
  * @param {string} resource - Lock name without the prefix, e.g. `queue:lead:12`.
  * @param {{ttlMs?: number, busyMessage?: string}} options
@@ -142,4 +138,4 @@ const withQueueLock = async (resource, options, routine) => {
   }
 };
 
-module.exports = { redlock: { using }, withQueueLock, DEFAULT_LOCK_TTL_MS };
+module.exports = { redlock: { using }, withQueueLock };

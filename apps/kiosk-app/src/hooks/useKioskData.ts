@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { API_BASE, AUTH_BASE, Lead } from '@omni/shared';
-import { queuePositionOf } from '@omni/shared-ui';
+import { queuePositionOf, apiGet, apiPost } from '@omni/shared-ui';
 
 export const useKioskData = (options: {
   enabled: boolean;
@@ -21,8 +20,7 @@ export const useKioskData = (options: {
     }
 
     let cancelled = false;
-    axios
-      .post(`${AUTH_BASE}/api/auth/ticket-token`, { ticketNumber: options.currentLead.ticketNumber })
+    apiPost(`${AUTH_BASE}/api/auth/ticket-token`, { ticketNumber: options.currentLead.ticketNumber })
       .then((res) => {
         if (!cancelled) setToken(res.data.token || '');
       })
@@ -41,7 +39,7 @@ export const useKioskData = (options: {
     if (!current || !tokenToUse || !current.assignedPosition) return;
 
     try {
-      const { data: posLeads } = await axios.get<Lead[]>(
+      const { data: posLeads } = await apiGet<Lead[]>(
         `${API_BASE}/leads?position=${encodeURIComponent(current.assignedPosition)}`,
         { headers: { Authorization: `Bearer ${tokenToUse}` } }
       );

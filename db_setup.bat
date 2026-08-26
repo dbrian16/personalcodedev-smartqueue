@@ -1,6 +1,6 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════
-REM  Omni-Queue 360 — PostgreSQL Local Setup Script
+REM  Omni-Queue 360 - PostgreSQL Local Setup Script
 REM  Run this ONCE after installing PostgreSQL on Windows.
 REM ═══════════════════════════════════════════════════════════════
 SETLOCAL
@@ -14,8 +14,8 @@ SET DB_NAME=omniqueue
 SET PGPASSWORD=%PG_PASSWORD%
 
 echo.
-echo ╔══════════════════════════════════════════════════════╗
-echo ║  Omni-Queue 360 — PostgreSQL Database Setup         ║
+echo ╔══════════════════════════════════════════════════════�-
+echo ║  Omni-Queue 360 - PostgreSQL Database Setup         ║
 echo ╚══════════════════════════════════════════════════════╝
 echo.
 
@@ -59,13 +59,13 @@ if %ERRORLEVEL% neq 0 (
     pause
     exit /b 1
 )
-echo         OK — connected to PostgreSQL
+echo         OK - connected to PostgreSQL
 
 REM ── Create database ────────────────────────────────────────────
 echo [2/3] Creating database '%DB_NAME%'...
 psql -h %PG_HOST% -p %PG_PORT% -U %PG_USER% -tc "SELECT 1 FROM pg_database WHERE datname = '%DB_NAME%'" | findstr "1" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo         Database '%DB_NAME%' already exists — skipping.
+    echo         Database '%DB_NAME%' already exists - skipping.
 ) else (
     psql -h %PG_HOST% -p %PG_PORT% -U %PG_USER% -c "CREATE DATABASE %DB_NAME%;"
     if %ERRORLEVEL% neq 0 (
@@ -86,7 +86,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo ╔══════════════════════════════════════════════════════╗
+echo ╔══════════════════════════════════════════════════════�-
 echo ║  SUCCESS! PostgreSQL is ready.                      ║
 echo ║                                                     ║
 echo ║  Database: %DB_NAME%                            ║

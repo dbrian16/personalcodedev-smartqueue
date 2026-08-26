@@ -7,8 +7,8 @@ const wantsDatabase = !isTest && !!process.env.DATABASE_URL && process.env.USE_D
 
 const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? '' : 'omni-queue-360-dev-secret');
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
-// A ticket outlives a staff shift, so the customer token must outlive the admin
-// token — a shared 12h lifetime would expire a customer's ticket mid-wait.
+// A ticket outlives a staff shift, so the customer token gets its own lifetime.
+// Sharing the 12h staff lifetime would expire a customer's ticket mid-wait.
 const CUSTOMER_JWT_EXPIRES_IN = process.env.CUSTOMER_JWT_EXPIRES_IN || '7d';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || (isProduction ? '' : 'admin');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (isProduction ? '' : 'admin123');
@@ -55,7 +55,6 @@ const toNumber = (value, fallback) => {
 
 module.exports = {
   isTest,
-  isProduction,
   databaseRequired,
   wantsDatabase,
   JWT_SECRET,
@@ -71,13 +70,13 @@ module.exports = {
   PORT: process.env.PORT || 5100,
   DATABASE_URL: process.env.DATABASE_URL,
   REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
-  // Defaulting this to '' silently disabled every AI prediction on a fresh
-  // checkout, so the "AI predictive engine" looked like a flat 5-minute constant.
+  // Defaults to the local engine rather than '', so a fresh checkout gets real
+  // predictions instead of falling through to a flat constant.
   AI_ENGINE_URL: process.env.AI_ENGINE_URL === undefined
     ? 'http://127.0.0.1:5001'
     : process.env.AI_ENGINE_URL,
-  // 300ms could not survive a cold Flask worker on Windows, so the very first
-  // ticket of every session silently fell back to the default estimate.
+  // Generous enough for a cold Flask worker on Windows; a tighter timeout makes
+  // the first ticket of a session fall back to the default estimate.
   AI_ENGINE_TIMEOUT_MS: toNumber(process.env.AI_ENGINE_TIMEOUT_MS, 2000),
   AI_TRAINING_INTERVAL_MS: toNumber(process.env.AI_TRAINING_INTERVAL_MS, 15 * 60 * 1000),
   AI_TRAINING_MIN_SAMPLES: toNumber(process.env.AI_TRAINING_MIN_SAMPLES, 30),
