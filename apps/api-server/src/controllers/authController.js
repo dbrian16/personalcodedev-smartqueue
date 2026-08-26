@@ -26,7 +26,7 @@ const issueTicketToken = async (ticketNumber, res) => {
  * Handles login for admin and staff users.
  */
 exports.login = catchAsync(async (req, res) => {
-  const { userType, username, password, pin } = req.body;
+  const { userType, username, password } = req.body;
 
   if (userType === 'admin') {
     if (safeCompare(username, config.ADMIN_USERNAME) && safeCompare(password, config.ADMIN_PASSWORD)) {
@@ -38,7 +38,6 @@ exports.login = catchAsync(async (req, res) => {
   }
 
   if (userType === 'staff') {
-    // New: per-account username/password authentication
     if (username && password) {
       const staffAccount = await store.getStaffAccount(username);
       if (staffAccount && safeCompare(password, staffAccount.password) && staffAccount.isActive) {
@@ -57,12 +56,6 @@ exports.login = catchAsync(async (req, res) => {
       throwError('Invalid staff credentials or account disabled', 401);
     }
 
-    // Legacy: shared PIN fallback
-    if (pin && safeCompare(pin, config.STAFF_PIN)) {
-      const staffName = typeof username === 'string' && username.trim() ? username.trim() : 'staff';
-      log.info('auth:staff:pin:success', { staffName });
-      return res.json({ token: generateToken(staffName, 'staff'), userType: 'staff' });
-    }
     log.warn('auth:staff:fail');
     throwError('Invalid staff credentials', 401);
   }

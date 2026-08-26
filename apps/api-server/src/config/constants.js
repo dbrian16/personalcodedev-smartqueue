@@ -33,9 +33,14 @@ module.exports = {
   LOCK_RENEW_MIN_INTERVAL_MS: 100,
   RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000,
   RATE_LIMIT_GENERAL_MAX: 3000,
-  RATE_LIMIT_AUTH_MAX: 1000,
+  // Login and ticket-token both hand out credentials, so they get the tight
+  // budgets. A kiosk issues far fewer of these than it does page requests.
+  RATE_LIMIT_AUTH_MAX: 20,
   RATE_LIMIT_PUBLIC_MAX: 1000,
   RATE_LIMIT_LOOKUP_MAX: 30,
+  // Ticket numbers are sequential, so this one is the easiest to enumerate.
+  // Sized for a real kiosk (a few calls per customer), not for a scanner.
+  RATE_LIMIT_TICKET_TOKEN_MAX: 60,
 
   /**
    * Operating policy. These are seed values only: they are written to the

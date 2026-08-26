@@ -20,7 +20,9 @@ const socket = require('../socket');
  */
 const assertMayServe = (user, position, options = {}) => {
   if (user.userType === 'admin') return false;
-  if (!user.service) return false; // PIN-only legacy session: no assignment to enforce.
+  // Fail closed. Every staff token carries the account's assigned service, so a
+  // token without one is malformed and must not be treated as unrestricted.
+  if (!user.service) throwError('This session has no counter assignment.', 403);
   if (String(user.service).toLowerCase() === String(position).toLowerCase()) return false;
 
   if (!options.coveringFor) {

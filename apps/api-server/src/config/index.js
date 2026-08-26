@@ -12,7 +12,6 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
 const CUSTOMER_JWT_EXPIRES_IN = process.env.CUSTOMER_JWT_EXPIRES_IN || '7d';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || (isProduction ? '' : 'admin');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (isProduction ? '' : 'admin123');
-const STAFF_PIN = process.env.STAFF_PIN || (isProduction ? '' : '1234');
 
 // Individual staff accounts with service assignments
 const STAFF_ACCOUNTS = [
@@ -35,8 +34,8 @@ if (!isTest && isProduction && !JWT_SECRET) {
   throw new Error('JWT_SECRET is required in production.');
 }
 
-if (!isTest && isProduction && (!ADMIN_USERNAME || !ADMIN_PASSWORD || !STAFF_PIN)) {
-  throw new Error('ADMIN_USERNAME, ADMIN_PASSWORD, and STAFF_PIN are required in production.');
+if (!isTest && isProduction && (!ADMIN_USERNAME || !ADMIN_PASSWORD)) {
+  throw new Error('ADMIN_USERNAME and ADMIN_PASSWORD are required in production.');
 }
 
 const allowedOrigins = process.env.CORS_ORIGIN
@@ -62,7 +61,6 @@ module.exports = {
   CUSTOMER_JWT_EXPIRES_IN,
   ADMIN_USERNAME,
   ADMIN_PASSWORD,
-  STAFF_PIN,
   STAFF_ACCOUNTS,
   DEFAULT_SERVICES,
   allowedOrigins,

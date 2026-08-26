@@ -5,7 +5,8 @@ const {
   RATE_LIMIT_GENERAL_MAX,
   RATE_LIMIT_AUTH_MAX,
   RATE_LIMIT_PUBLIC_MAX,
-  RATE_LIMIT_LOOKUP_MAX
+  RATE_LIMIT_LOOKUP_MAX,
+  RATE_LIMIT_TICKET_TOKEN_MAX
 } = require('../config/constants');
 
 const generalLimiter = rateLimit({ windowMs: RATE_LIMIT_WINDOW_MS, max: RATE_LIMIT_GENERAL_MAX, standardHeaders: true, legacyHeaders: false });
@@ -22,9 +23,20 @@ const lookupLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// A ticket number is the only thing needed to mint a customer token, and ticket
+// numbers run in sequence, so this is the cheapest endpoint to enumerate.
+const ticketTokenLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_TICKET_TOKEN_MAX,
+  message: { error: 'Too many ticket lookups from this address. Please wait a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 module.exports = {
   generalLimiter,
   authLimiter,
   publicEndpointLimiter,
-  lookupLimiter
+  lookupLimiter,
+  ticketTokenLimiter
 };

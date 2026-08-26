@@ -99,5 +99,9 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Loopback only: the Node backend is the sole client and calls this on
+    # 127.0.0.1. None of these routes authenticate, and /train writes to the
+    # model, so the service must not be reachable from the network.
+    host = os.environ.get("AI_ENGINE_HOST", "127.0.0.1")
+    app.run(host=host, port=port, debug=False)
 
