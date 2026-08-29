@@ -61,6 +61,28 @@ npm run docker:up     # start PostgreSQL + Redis via docker-compose
   workflow by persona and the technical architecture.
 - **[apps/api-server/docs/CODING_STANDARDS.md](apps/api-server/docs/CODING_STANDARDS.md)** — backend coding conventions.
 
+## Security
+
+This codebase has been audited across the following domains:
+
+- **Secrets management** — all `.env` files are git-ignored; production requires explicit
+  configuration via environment variables; JWT secret and admin credentials throw on
+  missing values in production.
+- **Authentication & authorisation** — JWT with role-based access control (`admin`,
+  `staff`, `customer`); timing-safe credential comparison (`crypto.timingSafeEqual`);
+  per-service staff access enforcement with cross-counter audit trail.
+- **Rate limiting** — tiered limits on login (20/15 min), ticket token (60/15 min),
+  lookup (30/15 min), and a general cap (3000/15 min); brute-force lockout on
+  check-in attempts.
+- **Input validation** — parameterised SQL everywhere; email / phone validation;
+  strict status-transition whitelist; JSON body size cap (1 MB).
+- **Infrastructure** — Helmet security headers; CORS origin whitelist in production;
+  Docker services bound to loopback; AI engine on `127.0.0.1` only.
+- **Data protection** — PII masking in logs and API responses; OTP codes stored as
+  SHA-256 hashes with TTL; check-in audit identifiers hashed.
+- **Concurrency** — distributed locking with Lua-script token verification and
+  auto-renewal; double-booking prevention via re-validation inside the lock.
+
 ## Notes for contributors
 
 - The `*.bat` scripts at the repo root are Windows convenience helpers; the
